@@ -57,6 +57,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("speak", self.handle_node_answer)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
         self.register_fallback(self.handle_fallback, 99)
+        self.register_intent_file("pingnode.intent", self.handle_ping_node)
 
     def connect_to_node(self):
         self.address = u"wss://" + unicode(self.settings["host"]) + u":" + \
@@ -115,6 +116,13 @@ class NodeRedSkill(FallbackSkill):
 
         self.wait()
         return self.success
+
+    def handle_ping_node(self, message):
+        self.emitter.emit(Message("node_red.send",
+                                  {"payload": {"type": "node_red.ask",
+                                               "data": {"utterance", "hello"},
+                                               "context": message.context},
+                                   "peer": self.node, "isBinary": False}))
 
 
 def create_skill():
