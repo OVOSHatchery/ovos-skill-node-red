@@ -1,6 +1,7 @@
 from os.path import exists, dirname
 from threading import Thread
 import os
+import base64
 from twisted.internet import reactor, ssl
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
@@ -29,7 +30,11 @@ class NodeRedProtocol(WebSocketServerProtocol):
     def onConnect(self, request):
         logger.info("Client connecting: {0}".format(request.peer))
         # validate user
-        api = request.headers.get("api")
+        usernamePasswordEncoded = request.headers.get("authorization")
+        usernamePasswordEncoded = usernamePasswordEncoded.split()
+        usernamePasswordDecoded = base64.b64decode(usernamePasswordEncoded[1])
+        username, api = usernamePasswordDecoded.split(":")
+
         ip = request.peer.split(":")[1]
         context = {"source": self.peer}
         self.platform = request.headers.get("platform", "unknown")
