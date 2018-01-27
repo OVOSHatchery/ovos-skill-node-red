@@ -38,12 +38,12 @@ class NodeRedProtocol(WebSocketServerProtocol):
             logger.info("Node_red provided an invalid api key")
             self.factory.emitter_send("node_red.connection.error",
                                       {"error": "invalid api key",
-                                       "ip": ip,
+                                       "peer": request.peer,
                                        "api_key": api},
                                       context)
             raise ValueError("Invalid API key")
         # send message to internal mycroft bus
-        data = {"ip": ip, "headers": request.headers}
+        data = {"peer": request.peer, "headers": request.headers}
         self.factory.emitter_send("node_red.connect", data, context)
         # return a pair with WS protocol spoken (or None for any) and
         # custom headers to send in initial WS opening handshake HTTP response
@@ -73,7 +73,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         self.factory.unregister_client(self, reason=u"connection closed")
         logger.info("WebSocket connection closed: {0}".format(reason))
         ip = self.peer.split(":")[1]
-        data = {"ip": ip, "code": code, "reason": "connection closed", "wasClean": wasClean}
+        data = {"peer": self.peer, "code": code, "reason": "connection closed", "wasClean": wasClean}
         context = {"source": self.peer}
         self.factory.emitter_send("node_red.disconnect", data, context)
 
@@ -85,7 +85,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         self.factory.unregister_client(self, reason=u"connection lost")
         logger.info("WebSocket connection lost: {0}".format(reason))
         ip = self.peer.split(":")[1]
-        data = {"ip": ip, "reason": "connection lost"}
+        data = {"peer": self.peer, "reason": "connection lost"}
         context = {"source": self.peer}
         self.factory.emitter_send("node_red.disconnect", data, context)
 
@@ -146,6 +146,9 @@ class NodeRedFactory(WebSocketServerFactory):
             return
         self.clients[client.peer] = {"object": client, "status":
             "connected", "platform": platform}
+        context = {"source": client.peer}
+        self.emitter.emit(
+            Message("node_red.connect", {"peer": client.peer},  context))
 
     def unregister_client(self, client, code=3078, reason=u"unregister client request"):
         """
@@ -159,7 +162,7 @@ class NodeRedFactory(WebSocketServerFactory):
                        "source": client.peer}
             self.emitter.emit(
                 Message("node_red.disconnect",
-                        {"reason": reason, "ip": ip, "sock": sock_num},
+                        {"reason": reason, "peer": client.peer},
                         context))
             client.sendClose(code, reason)
             self.clients.pop(client.peer)
