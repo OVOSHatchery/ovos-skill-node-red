@@ -17,6 +17,7 @@ import base64
 from twisted.internet import reactor, ssl
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
+from autobahn.websocket.types import ConnectionDeny
 from sqlalchemy import Column, Text, String, Integer, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -47,16 +48,15 @@ class NodeRedSkill(FallbackSkill):
             self.settings["sql_db"] = None
         if "timeout" not in self.settings:
             self.settings["timeout"] = 10
+        if "ssl" not in self.settings:
+            self.settings["ssl"] = False
         self.waiting = False
         self.factory = None
 
     def initialize(self):
-        #self.node_thread = Thread(target=self.connect_to_node)
-        #self.node_thread.setDaemon(True)
-        #self.node_thread.start()
-
         self.node_thread = Process(target=self.connect_to_node)
         self.node_thread.start()
+        LOG.info("Listening for node red connections on " + self.address)
 
         self.emitter.on("speak", self.handle_node_answer)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
@@ -64,27 +64,35 @@ class NodeRedSkill(FallbackSkill):
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
 
     def connect_to_node(self):
-        self.address = u"wss://" + unicode(self.settings["host"]) + u":" + \
+        prot = "wss" if self.settings["ssl"] else "ws"
+        self.address = unicode(prot) + u"://" + \
+                       unicode(self.settings["host"]) + u":" + \
                        unicode(self.settings["port"])
+
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
 
-        if not exists(self.settings["key"]) or not exists(
-                self.settings["cert"]):
-            LOG.warning("ssl keys dont exist, creating self signed")
-            dir = self._dir + "/certs"
-            name = self.settings["key"].split("/")[-1].replace(".key", "")
-            create_self_signed_cert(dir, name)
-            cert = dir + "/" + name + ".crt"
-            key = dir + "/" + name + ".key"
-            LOG.info("key created at: " + key)
-            LOG.info("crt created at: " + cert)
+        if self.settings["ssl"]:
+            if not exists(self.settings["key"]) or not exists(
+                    self.settings["cert"]):
+                LOG.warning("ssl keys dont exist, creating self signed")
+                dir = self._dir + "/certs"
+                name = self.settings["key"].split("/")[-1].replace(".key", "")
+                create_self_signed_cert(dir, name)
+                cert = dir + "/" + name + ".crt"
+                key = dir + "/" + name + ".key"
+                LOG.info("key created at: " + key)
+                LOG.info("crt created at: " + cert)
 
-        # SSL server context: load server key and certificate
-        contextFactory = ssl.DefaultOpenSSLContextFactory(self.settings["key"],
-                                                          self.settings["cert"])
+            # SSL server context: load server key and certificate
+            contextFactory = ssl.DefaultOpenSSLContextFactory(self.settings["key"],
+                                                              self.settings["cert"])
 
-        reactor.listenSSL(self.settings["port"], self.factory, contextFactory)
+            reactor.listenSSL(self.settings["port"],
+                              self.factory,
+                              contextFactory)
+        else:
+            reactor.listenTCP(self.settings["port"], self.factory)
         reactor.run()
 
     @property
@@ -283,6 +291,10 @@ class NodeRedProtocol(WebSocketServerProtocol):
 
         context = {"source": self.peer}
         self.platform = request.headers.get("platform", "unknown")
+        # send message to internal mycroft bus
+        data = {"peer": request.peer, "headers": request.headers}
+        self.factory.emitter_send("node_red.connect", data, context)
+
         user = nodes.get_node_by_api_key(api)
         if not user:
             LOG.info("Node_red provided an invalid api key")
@@ -291,10 +303,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
                                        "peer": request.peer,
                                        "api_key": api},
                                       context)
-            raise ValueError("Invalid API key")
-        # send message to internal mycroft bus
-        data = {"peer": request.peer, "headers": request.headers}
-        self.factory.emitter_send("node_red.connect", data, context)
+            raise ConnectionDeny(4000, "Invalid API key")
         # return a pair with WS protocol spoken (or None for any) and
         # custom headers to send in initial WS opening handshake HTTP response
         headers = {"source": NAME}
@@ -308,8 +317,8 @@ class NodeRedProtocol(WebSocketServerProtocol):
 
        Register client in factory, so that it is able to track it.
        """
-        self.factory.register_client(self, self.platform)
         LOG.info("WebSocket connection open.")
+        self.factory.register_client(self, self.platform)
 
     def onMessage(self, payload, isBinary):
         if isBinary:
