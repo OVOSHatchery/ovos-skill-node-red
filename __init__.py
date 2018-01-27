@@ -24,8 +24,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from mycroft.messagebus.client.ws import WebsocketClient
 from mycroft.messagebus.message import Message
 from mycroft.skills.core import FallbackSkill
-from mycroft.util.log import LOG as logger
-
+from mycroft.util.log import LOG
 
 __author__ = "jarbas"
 
@@ -61,19 +60,20 @@ class NodeRedSkill(FallbackSkill):
 
     def connect_to_node(self):
         self.address = u"wss://" + unicode(self.settings["host"]) + u":" + \
-                  unicode(self.settings["port"])
+                       unicode(self.settings["port"])
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
 
-        if not exists(self.settings["key"]) or not exists(self.settings["cert"]):
-            logger.warning("ssl keys dont exist, creating self signed")
+        if not exists(self.settings["key"]) or not exists(
+                self.settings["cert"]):
+            LOG.warning("ssl keys dont exist, creating self signed")
             dir = self._dir + "/certs"
             name = self.settings["key"].split("/")[-1].replace(".key", "")
             create_self_signed_cert(dir, name)
             cert = dir + "/" + name + ".crt"
             key = dir + "/" + name + ".key"
-            logger.info("key created at: " + key)
-            logger.info("crt created at: " + cert)
+            LOG.info("key created at: " + key)
+            LOG.info("crt created at: " + cert)
 
         # SSL server context: load server key and certificate
         contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
@@ -145,7 +145,7 @@ class NodeRedConnection(Base):
 
 class NodeDatabase(object):
     def __init__(self, path=None, debug=False):
-        path = path or join("sqlite:///",  dirname(__file__), "nodes.db")
+        path = path or join("sqlite:///", dirname(__file__), "nodes.db")
         self.db = create_engine(path)
         self.db.echo = debug
 
@@ -175,10 +175,12 @@ class NodeDatabase(object):
         return self.commit()
 
     def get_node_by_api_key(self, api_key):
-        return self.session.query(NodeRedConnection).filter_by(api_key=api_key).first()
+        return self.session.query(NodeRedConnection).filter_by(
+            api_key=api_key).first()
 
     def get_node_by_name(self, name):
-        return self.session.query(NodeRedConnection).filter_by(name=name).first()
+        return self.session.query(NodeRedConnection).filter_by(
+            name=name).first()
 
     def add_node(self, name=None, mail=None, api=""):
         node = NodeRedConnection(api_key=api, name=name, mail=mail,
@@ -203,7 +205,8 @@ nodes = NodeDatabase()
 
 # utils
 def model_to_dict(obj):
-    serialized_data = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
+    serialized_data = {c.key: getattr(obj, c.key) for c in
+                       obj.__table__.columns}
     return serialized_data
 
 
@@ -260,7 +263,7 @@ def create_self_signed_cert(cert_dir, name="mycroft_NodeRed"):
 # protocol
 class NodeRedProtocol(WebSocketServerProtocol):
     def onConnect(self, request):
-        logger.info("Client connecting: {0}".format(request.peer))
+        LOG.info("Client connecting: {0}".format(request.peer))
         # validate user
         usernamePasswordEncoded = request.headers.get("authorization")
         usernamePasswordEncoded = usernamePasswordEncoded.split()
@@ -271,7 +274,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         self.platform = request.headers.get("platform", "unknown")
         user = nodes.get_node_by_api_key(api)
         if not user:
-            logger.info("Node_red provided an invalid api key")
+            LOG.info("Node_red provided an invalid api key")
             self.factory.emitter_send("node_red.connection.error",
                                       {"error": "invalid api key",
                                        "peer": request.peer,
@@ -295,20 +298,23 @@ class NodeRedProtocol(WebSocketServerProtocol):
        Register client in factory, so that it is able to track it.
        """
         self.factory.register_client(self, self.platform)
-        logger.info("WebSocket connection open.")
+        LOG.info("WebSocket connection open.")
 
     def onMessage(self, payload, isBinary):
         if isBinary:
-            logger.info("Binary message received: {0} bytes".format(len(payload)))
+            LOG.info(
+                "Binary message received: {0} bytes".format(len(payload)))
         else:
-            logger.info("Text message received: {0}".format(payload.decode('utf8')))
+            LOG.info(
+                "Text message received: {0}".format(payload.decode('utf8')))
 
         self.factory.process_message(self, payload, isBinary)
 
     def onClose(self, wasClean, code, reason):
         self.factory.unregister_client(self, reason=u"connection closed")
-        logger.info("WebSocket connection closed: {0}".format(reason))
-        data = {"peer": self.peer, "code": code, "reason": "connection closed", "wasClean": wasClean}
+        LOG.info("WebSocket connection closed: {0}".format(reason))
+        data = {"peer": self.peer, "code": code,
+                "reason": "connection closed", "wasClean": wasClean}
         context = {"source": self.peer}
         self.factory.emitter_send("node_red.disconnect", data, context)
 
@@ -318,7 +324,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
        Remove client from list of tracked connections.
        """
         self.factory.unregister_client(self, reason=u"connection lost")
-        logger.info("WebSocket connection lost: {0}".format(reason))
+        LOG.info("WebSocket connection lost: {0}".format(reason))
         data = {"peer": self.peer, "reason": "connection lost"}
         context = {"source": self.peer}
         self.factory.emitter_send("node_red.disconnect", data, context)
@@ -364,16 +370,16 @@ class NodeRedFactory(WebSocketServerFactory):
        Add client to list of managed connections.
        """
         platform = platform or "unknown"
-        logger.info("registering node_red: " + str(client.peer))
+        LOG.info("registering node_red: " + str(client.peer))
         t, ip, sock = client.peer.split(":")
         # see if ip adress is blacklisted
         if ip in self.ip_list and self.blacklist:
-            logger.warning("Blacklisted ip tried to connect: " + ip)
+            LOG.warning("Blacklisted ip tried to connect: " + ip)
             self.unregister_client(client, reason=u"Blacklisted ip")
             return
         # see if ip adress is whitelisted
         elif ip not in self.ip_list and not self.blacklist:
-            logger.warning("Unknown ip tried to connect: " + ip)
+            LOG.warning("Unknown ip tried to connect: " + ip)
             #  if not whitelisted kick
             self.unregister_client(client, reason=u"Unknown ip")
             return
@@ -383,11 +389,12 @@ class NodeRedFactory(WebSocketServerFactory):
         self.emitter.emit(
             Message("node_red.connect", {"peer": client.peer}, context))
 
-    def unregister_client(self, client, code=3078, reason=u"unregister client request"):
+    def unregister_client(self, client, code=3078,
+                          reason=u"unregister client request"):
         """
        Remove client from list of managed connections.
        """
-        logger.info("deregistering node_red: " + str(client.peer))
+        LOG.info("deregistering node_red: " + str(client.peer))
         if client.peer in self.clients.keys():
             context = {"source": client.peer}
             self.emitter.emit(
@@ -401,7 +408,7 @@ class NodeRedFactory(WebSocketServerFactory):
         """
        Process message from node, decide what to do internally here
        """
-        logger.info("processing message from client: " + str(client.peer))
+        LOG.info("processing message from client: " + str(client.peer))
         client_data = self.clients[client.peer]
         client_protocol, ip, sock_num = client.peer.split(":")
         # TODO update any client data you may want to store, ip, timestamp
@@ -433,8 +440,8 @@ class NodeRedFactory(WebSocketServerFactory):
                 message.context["client_name"] = "node_red"
                 message.context["destinatary"] = client.peer
             else:
-                logger.warning("node red sent an unexpected message type, "
-                               "it was suppressed: " + message.type)
+                LOG.warning("node red sent an unexpected message type, "
+                            "it was suppressed: " + message.type)
                 return
             # send client message to internal mycroft bus
             self.emitter.emit(message)
@@ -455,11 +462,11 @@ class NodeRedFactory(WebSocketServerFactory):
             payload = Message.serialize(msg)
             client.sendMessage(payload, False)
         else:
-            logger.error("That client is not connected")
+            LOG.error("That client is not connected")
             self.emitter_send("node_red.send.error",
-                                      {"error": "Node Red is not connected",
-                                       "peer": peer},
-                                      message.context)
+                              {"error": "Node Red is not connected",
+                               "peer": peer},
+                              message.context)
 
     def handle_speak(self, message):
         ''' capture speak answers for queries from node red '''
@@ -471,5 +478,3 @@ class NodeRedFactory(WebSocketServerFactory):
                 client_data = self.clients[peer] or {}
                 client = client_data.get("object")
                 client.sendMessage(message.serialize(), False)
-
-
