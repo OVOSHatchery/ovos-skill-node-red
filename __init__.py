@@ -8,7 +8,7 @@ from OpenSSL import crypto
 from socket import gethostname
 from os import makedirs
 import random
-from os.path import join, dirname, exists
+from os.path import join, exists
 from threading import Thread
 from multiprocessing import Process
 import os
@@ -18,10 +18,6 @@ from twisted.internet import reactor, ssl
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from autobahn.websocket.types import ConnectionDeny
-from sqlalchemy import Column, Text, String, Integer, create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.declarative import declarative_base
 
 from mycroft.messagebus.client.ws import WebsocketClient
 from mycroft.messagebus.message import Message
@@ -44,8 +40,6 @@ class NodeRedSkill(FallbackSkill):
             self.settings["cert"] = self._dir + '/certs/red.crt'
         if "key" not in self.settings:
             self.settings["key"] = self._dir + '/certs/red.key'
-        if "sql_db" not in self.settings:
-            self.settings["sql_db"] = None
         if "timeout" not in self.settings:
             self.settings["timeout"] = 10
         if "ssl" not in self.settings:
