@@ -1,1 +1,1 @@
-[{"id":"ad1bc17b.7c5ac","type":"template","z":"a561902b.30383","name":"json response","field":"payload","fieldType":"msg","format":"handlebars","syntax":"mustache","template":"{\"type\": \"node_red.answer\", \"data\":{\"utterance\": \"{{payload}}\"}, \"context\":{}}","output":"str","x":1830,"y":880,"wires":[["72bc7b70.7b12d4"]]}]
+[{"id":"be5100d1.097d5","type":"function","z":"a561902b.30383","name":"text response to hello","func":"var msg = {payload: \"node-red says hey\"};\n\nreturn msg;\n","outputs":"1","noerr":0,"x":1170,"y":880,"wires":[["ad1bc17b.7c5ac"]]}]
