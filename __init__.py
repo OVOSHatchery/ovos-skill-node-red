@@ -18,10 +18,6 @@ from twisted.internet import reactor, ssl
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from autobahn.websocket.types import ConnectionDeny
-from sqlalchemy import Column, Text, String, Integer, create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.declarative import declarative_base
 
 from mycroft.messagebus.client.ws import WebsocketClient
 from mycroft.messagebus.message import Message
@@ -49,13 +45,26 @@ class NodeRedSkill(FallbackSkill):
         if "timeout" not in self.settings:
             self.settings["timeout"] = 10
         if "ssl" not in self.settings:
-            self.settings["ssl"] = False
+            self.settings["ssl"] = True
+        if "secret" not in self.settings:
+            self.settings["secret"] = "test_key"
+        if "ip_list" not in self.settings:
+            self.settings["ip_list"] = []
+        if "ip_blacklist" not in self.settings:
+            self.settings["ip_blacklist"] = True
         self.waiting = False
         self.factory = None
 
     def initialize(self):
+        self.settings["ssl"] = False
+        prot = "wss" if self.settings["ssl"] else "ws"
+        self.address = unicode(prot) + u"://" + \
+                       unicode(self.settings["host"]) + u":" + \
+                       unicode(self.settings["port"])
+
         self.node_thread = Process(target=self.connect_to_node)
         self.node_thread.start()
+
         LOG.info("Listening for node red connections on " + self.address)
 
         self.emitter.on("speak", self.handle_node_answer)
@@ -64,14 +73,10 @@ class NodeRedSkill(FallbackSkill):
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
 
     def connect_to_node(self):
-        prot = "wss" if self.settings["ssl"] else "ws"
-        self.address = unicode(prot) + u"://" + \
-                       unicode(self.settings["host"]) + u":" + \
-                       unicode(self.settings["port"])
-
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
-
+        self.factory.ip_list = self.settings["ip_list"]
+        self.factory.blacklist = self.settings["ip_blacklist"]
         if self.settings["ssl"]:
             if not exists(self.settings["key"]) or not exists(
                     self.settings["cert"]):
@@ -148,91 +153,7 @@ def create_skill():
     return NodeRedSkill()
 
 
-# db
-Base = declarative_base()
-
-
-class NodeRedConnection(Base):
-    __tablename__ = "nodes"
-    id = Column(Integer, primary_key=True)
-    description = Column(Text)
-    api_key = Column(String)
-    name = Column(String)
-    mail = Column(String)
-    last_seen = Column(Integer, default=0)
-
-
-class NodeDatabase(object):
-    def __init__(self, path=None, debug=False):
-        path = path or "sqlite:///" + join(dirname(__file__), "nodes.db")
-        self.db = create_engine(path)
-        self.db.echo = debug
-
-        Session = sessionmaker(bind=self.db)
-        self.session = Session()
-        Base.metadata.create_all(self.db)
-
-    def update_timestamp(self, api, timestamp):
-        node = self.get_node_by_api_key(api)
-        if not node:
-            return False
-        node.last_seen = timestamp
-        return self.commit()
-
-    def delete_node(self, api):
-        node = self.get_node_by_api_key(api)
-        if node:
-            self.session.delete(node)
-            return self.commit()
-        return False
-
-    def change_api(self, node_name, new_key):
-        node = self.get_node_by_name(node_name)
-        if not node:
-            return False
-        node.api_key = new_key
-        return self.commit()
-
-    def get_node_by_api_key(self, api_key):
-        return self.session.query(NodeRedConnection).filter_by(
-            api_key=api_key).first()
-
-    def get_node_by_name(self, name):
-        return self.session.query(NodeRedConnection).filter_by(
-            name=name).first()
-
-    def add_node(self, name=None, mail=None, api=""):
-        node = NodeRedConnection(api_key=api, name=name, mail=mail,
-                                 id=self.total_nodes() + 1)
-        self.session.add(node)
-        return self.commit()
-
-    def total_nodes(self):
-        return self.session.query(NodeRedConnection).count()
-
-    def commit(self):
-        try:
-            self.session.commit()
-            return True
-        except IntegrityError:
-            self.session.rollback()
-        return False
-
-
-nodes = NodeDatabase()
-
-
 # utils
-def model_to_dict(obj):
-    serialized_data = {c.key: getattr(obj, c.key) for c in
-                       obj.__table__.columns}
-    return serialized_data
-
-
-def props(cls):
-    return [i for i in cls.__dict__.keys() if i[:1] != '_']
-
-
 def root_dir():
     """ Returns root directory for this project """
     return os.path.dirname(os.path.realpath(__file__ + '/.'))
@@ -288,15 +209,13 @@ class NodeRedProtocol(WebSocketServerProtocol):
         usernamePasswordEncoded = usernamePasswordEncoded.split()
         usernamePasswordDecoded = base64.b64decode(usernamePasswordEncoded[1])
         username, api = usernamePasswordDecoded.split(":")
-
         context = {"source": self.peer}
-        self.platform = request.headers.get("platform", "unknown")
+        self.platform = request.headers.get("platform", "node_red")
         # send message to internal mycroft bus
         data = {"peer": request.peer, "headers": request.headers}
         self.factory.emitter_send("node_red.connect", data, context)
 
-        user = nodes.get_node_by_api_key(api)
-        if not user:
+        if api != self.settings["secret"]:
             LOG.info("Node_red provided an invalid api key")
             self.factory.emitter_send("node_red.connection.error",
                                       {"error": "invalid api key",
@@ -304,10 +223,6 @@ class NodeRedProtocol(WebSocketServerProtocol):
                                        "api_key": api},
                                       context)
             raise ConnectionDeny(4000, "Invalid API key")
-        # return a pair with WS protocol spoken (or None for any) and
-        # custom headers to send in initial WS opening handshake HTTP response
-        headers = {"source": NAME}
-        return (None, headers)
 
     def onOpen(self):
         """
