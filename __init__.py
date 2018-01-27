@@ -18,6 +18,10 @@ from twisted.internet import reactor, ssl
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from autobahn.websocket.types import ConnectionDeny
+from sqlalchemy import Column, Text, String, Integer, create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.declarative import declarative_base
 
 from mycroft.messagebus.client.ws import WebsocketClient
 from mycroft.messagebus.message import Message
@@ -210,7 +214,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         usernamePasswordDecoded = base64.b64decode(usernamePasswordEncoded[1])
         username, api = usernamePasswordDecoded.split(":")
         context = {"source": self.peer}
-        self.platform = request.headers.get("platform", "node_red")
+        self.platform = "node_red"
         # send message to internal mycroft bus
         data = {"peer": request.peer, "headers": request.headers}
         self.factory.emitter_send("node_red.connect", data, context)

@@ -1,1 +1,1 @@
-[{"id":"be5100d1.097d5","type":"function","z":"a561902b.30383","name":"text response to hello","func":"var msg = {payload: \"node-red says hey\"};\n\nreturn msg;\n","outputs":"1","noerr":0,"x":1170,"y":880,"wires":[["ad1bc17b.7c5ac"]]}]
+[{"id":"50c79538.634bec","type":"websocket in","z":"a561902b.30383","name":"mycroft-in","server":"70b6129e.a272bc","client":"","x":280,"y":1160,"wires":[["e3a328ec.a62638","b57d2027.67e4e"]]},{"id":"70b6129e.a272bc","type":"websocket-listener","z":"","path":"ws://test:test_key@127.0.0.1:6789","wholemsg":"false"}]
