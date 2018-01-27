@@ -11,6 +11,7 @@ import random
 from os.path import join, dirname, exists
 from threading import Thread
 import os
+import time
 import base64
 from twisted.internet import reactor, ssl
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
@@ -44,19 +45,23 @@ class NodeRedSkill(FallbackSkill):
             self.settings["key"] = self._dir + '/certs/red.key'
         if "sql_db" not in self.settings:
             self.settings["sql_db"] = None
+        if "timeout" not in self.settings:
+            self.settings["timeout"] = 10
+        self.waiting = False
 
     def initialize(self):
         self.node_thread = Thread(target=self.connect_to_node)
         self.node_thread.setDaemon(True)
         self.node_thread.start()
 
+        self.emitter.on("speak", self.handle_node_answer)
         self.register_fallback(self.handle_fallback, 99)
 
     def connect_to_node(self):
-        address = u"wss://" + unicode(self.settings["host"]) + u":" + \
+        self.address = u"wss://" + unicode(self.settings["host"]) + u":" + \
                   unicode(self.settings["port"])
-        factory = NodeRedFactory(address)
-        factory.protocol = NodeRedProtocol
+        self.factory = NodeRedFactory(self.address)
+        self.factory.protocol = NodeRedProtocol
 
         if not exists(self.settings["key"]) or not exists(self.settings["cert"]):
             logger.warning("ssl keys dont exist, creating self signed")
@@ -71,17 +76,37 @@ class NodeRedSkill(FallbackSkill):
         # SSL server context: load server key and certificate
         contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
 
-        reactor.listenSSL(self.settings["port"], factory, contextFactory)
+        reactor.listenSSL(self.settings["port"], self.factory, contextFactory)
         reactor.run()
 
+    @property
+    def node(self):
+        if self.factory is None or not len(self.factory.clients.keys()):
+            return None
+        return self.factory.clients.keys()[0]
+
+    def handle_node_answer(self, message):
+        ''' node answered us, signal end of fallback '''
+        destinatary = message.context.get("destinatary", "")
+        if destinatary == "node_fallback" and self.waiting:
+            self.waiting = False
+
+    def wait(self):
+        start = time.time()
+        self.waiting = True
+        while self.waiting and time.time() - start < self.settings["timeout"]:
+            time.sleep(0.3)
+        return not self.waiting
+
     def handle_fallback(self, message):
-        utterance = message.data['utterance']
-        user = message.context.get("user", "human")
-        try:
-            return True
-        except Exception as e:
-            self.log.error(e)
-        return False
+        # ask node
+        self.emitter.emit(Message("node_red.send",
+                                  {"payload": {"type": "node_red.ask",
+                                               "data": message.data,
+                                               "context": message.context},
+                                   "peer": self.node, "isBinary": False}))
+
+        return self.wait()
 
 
 def create_skill():
@@ -219,7 +244,7 @@ def create_self_signed_cert(cert_dir, name="mycroft_NodeRed"):
 # protocol
 class NodeRedProtocol(WebSocketServerProtocol):
     def onConnect(self, request):
-        logger.info("Client connecting: {0}".format(request.peer))
+        logger.info("Client connecting: {0}".format(request.node))
         # validate user
         usernamePasswordEncoded = request.headers.get("authorization")
         usernamePasswordEncoded = usernamePasswordEncoded.split()
@@ -233,12 +258,12 @@ class NodeRedProtocol(WebSocketServerProtocol):
             logger.info("Node_red provided an invalid api key")
             self.factory.emitter_send("node_red.connection.error",
                                       {"error": "invalid api key",
-                                       "peer": request.peer,
+                                       "peer": request.node,
                                        "api_key": api},
                                       context)
             raise ValueError("Invalid API key")
         # send message to internal mycroft bus
-        data = {"peer": request.peer, "headers": request.headers}
+        data = {"peer": request.node, "headers": request.headers}
         self.factory.emitter_send("node_red.connect", data, context)
         # return a pair with WS protocol spoken (or None for any) and
         # custom headers to send in initial WS opening handshake HTTP response
@@ -283,7 +308,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         self.factory.emitter_send("node_red.disconnect", data, context)
 
 
-# socket internals
+# websocket connection factory
 class NodeRedFactory(WebSocketServerFactory):
     def __init__(self, *args, **kwargs):
         super(NodeRedFactory, self).__init__(*args, **kwargs)
@@ -314,8 +339,7 @@ class NodeRedFactory(WebSocketServerFactory):
         self.emitter_thread.start()
 
     def register_internal_messages(self):
-        # catch all messages
-        self.emitter.on('message', self.handle_message)
+        self.emitter.on('speak', self.handle_speak)
         self.emitter.on('node_red.send', self.handle_send)
 
     # websocket handlers
@@ -324,8 +348,8 @@ class NodeRedFactory(WebSocketServerFactory):
        Add client to list of managed connections.
        """
         platform = platform or "unknown"
-        logger.info("registering node_red: " + str(client.peer))
-        t, ip, sock = client.peer.split(":")
+        logger.info("registering node_red: " + str(client.node))
+        t, ip, sock = client.node.split(":")
         # see if ip adress is blacklisted
         if ip in self.ip_list and self.blacklist:
             logger.warning("Blacklisted ip tried to connect: " + ip)
@@ -337,53 +361,71 @@ class NodeRedFactory(WebSocketServerFactory):
             #  if not whitelisted kick
             self.unregister_client(client, reason=u"Unknown ip")
             return
-        self.clients[client.peer] = {"object": client, "status":
+        self.clients[client.node] = {"object": client, "status":
             "connected", "platform": platform}
-        context = {"source": client.peer}
+        context = {"source": client.node}
         self.emitter.emit(
-            Message("node_red.connect", {"peer": client.peer},  context))
+            Message("node_red.connect", {"peer": client.node}, context))
 
     def unregister_client(self, client, code=3078, reason=u"unregister client request"):
         """
        Remove client from list of managed connections.
        """
-        logger.info("deregistering node_red: " + str(client.peer))
-        if client.peer in self.clients.keys():
-            context = {"source": client.peer}
+        logger.info("deregistering node_red: " + str(client.node))
+        if client.node in self.clients.keys():
+            context = {"source": client.node}
             self.emitter.emit(
                 Message("node_red.disconnect",
-                        {"reason": reason, "peer": client.peer},
+                        {"reason": reason, "peer": client.node},
                         context))
             client.sendClose(code, reason)
-            self.clients.pop(client.peer)
+            self.clients.pop(client.node)
 
     def process_message(self, client, payload, isBinary):
         """
-       Process message from client, decide what to do internally here
+       Process message from node, decide what to do internally here
        """
-        logger.info("processing message from client: " + str(client.peer))
-        client_data = self.clients[client.peer]
-        client_protocol, ip, sock_num = client.peer.split(":")
-        # TODO this would be the place to check for blacklisted
-        # messages/skills/intents per node instance
+        logger.info("processing message from client: " + str(client.node))
+        client_data = self.clients[client.node]
+        client_protocol, ip, sock_num = client.node.split(":")
+        # TODO update any client data you may want to store, ip, timestamp
+        # etc.
 
         if isBinary:
-            # TODO receive files
+            # TODO receive files ?
             pass
         else:
-            # add context for this message
             message = Message.deserialize(payload)
-            message.context["source"] = client.peer
-            message.context["destinatary"] = "skills"
+            # add context for this message
+            message.context["source"] = client.node
             message.context["platform"] = "node_red"
+
+            # This would be the place to check for blacklisted
+            # messages/skills/intents per node instance
+
+            # we could accept any kind of message for other purposes
+            if message.type == "node_red.answer":
+                # node is answering us
+                message.type = "speak"
+                message.context["destinatary"] = "node_fallback"
+            elif message.type == "node_red.query":
+                # node is asking us something
+                message.context["client_name"] = "node_red"
+                message.context["destinatary"] = client.node
+                message.type = "recognize_loop:utterance"
+            else:
+                logger.warning("node red sent an unexpected message type, "
+                               "it was suppressed: " + message.type)
+                return
             # send client message to internal mycroft bus
             self.emitter.emit(message)
 
     # mycroft handlers
     def handle_send(self, message):
+        ''' mycroft wants to send a message to a node instance '''
         # send message to client
         msg = message.data.get("payload")
-        is_file = message.data.get("isBinary")
+        is_file = message.data.get("isBinary", False)
         peer = message.data.get("peer")
         if is_file:
             # TODO send file
@@ -400,12 +442,15 @@ class NodeRedFactory(WebSocketServerFactory):
                                        "peer": peer},
                                       message.context)
 
-    def handle_message(self, message):
-        # forward internal messages to clients if they are the target
-        message = Message.deserialize(message)
-        message.context = message.context or {}
-        peer = message.context.get("destinatary")
-        if peer and peer in self.clients:
-            client_data = self.clients[peer] or {}
-            client = client_data.get("object")
-            client.sendMessage(message.serialize(), False)
+    def handle_speak(self, message):
+        ''' capture speak answers for queries from node red '''
+        # forward speak messages to node if that is the target
+        client_name = message.context.get("client_name", "")
+        if client_name == "node_red":
+            peer = message.context.get("destinatary")
+            if peer and peer in self.clients:
+                client_data = self.clients[peer] or {}
+                client = client_data.get("object")
+                client.sendMessage(message.serialize(), False)
+
+
