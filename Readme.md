@@ -13,6 +13,8 @@ Go away, seriously, it will just be frustrating if you try to use this code atm
 
     "node_red.send.error", {"error": "Node Red is not connected", "peer": peer}
 
+    "node_red.intent_failure" -> ends waiting for fallback
+
 
 # expected external messages from mycroft to node red
 
@@ -23,5 +25,7 @@ Go away, seriously, it will just be frustrating if you try to use this code atm
 # expected external messages from node.red to mycroft
 
     "node_red.answer", {"utterance": ""} -> becomes "speak", {"utterance": ""}, {"destinatary": "node_fallback"}
+
+    "node_red.intent_failure", {"utterance": ""} -> ends waiting for fallback
 
     "node_red.query", {"utterance": ""} -> becomes "recognizer_loop:utterance", {"utterances": [""]}, {"client_name": "node_red"}
