@@ -10,6 +10,7 @@ from os import makedirs
 import random
 from os.path import join, dirname, exists
 from threading import Thread
+from multiprocessing import Process
 import os
 import time
 import base64
@@ -47,10 +48,14 @@ class NodeRedSkill(FallbackSkill):
         if "timeout" not in self.settings:
             self.settings["timeout"] = 10
         self.waiting = False
+        self.factory = None
 
     def initialize(self):
-        self.node_thread = Thread(target=self.connect_to_node)
-        self.node_thread.setDaemon(True)
+        #self.node_thread = Thread(target=self.connect_to_node)
+        #self.node_thread.setDaemon(True)
+        #self.node_thread.start()
+
+        self.node_thread = Process(target=self.connect_to_node)
         self.node_thread.start()
 
         self.emitter.on("speak", self.handle_node_answer)
@@ -76,7 +81,8 @@ class NodeRedSkill(FallbackSkill):
             LOG.info("crt created at: " + cert)
 
         # SSL server context: load server key and certificate
-        contextFactory = ssl.DefaultOpenSSLContextFactory(key, cert)
+        contextFactory = ssl.DefaultOpenSSLContextFactory(self.settings["key"],
+                                                          self.settings["cert"])
 
         reactor.listenSSL(self.settings["port"], self.factory, contextFactory)
         reactor.run()
@@ -124,6 +130,11 @@ class NodeRedSkill(FallbackSkill):
                                                "context": message.context},
                                    "peer": self.node, "isBinary": False}))
 
+    def shutdown(self):
+        self.node_thread.join()
+        reactor.stop()
+        super(NodeRedSkill, self).shutdown()
+
 
 def create_skill():
     return NodeRedSkill()
@@ -145,7 +156,7 @@ class NodeRedConnection(Base):
 
 class NodeDatabase(object):
     def __init__(self, path=None, debug=False):
-        path = path or join("sqlite:///", dirname(__file__), "nodes.db")
+        path = path or "sqlite:///" + join(dirname(__file__), "nodes.db")
         self.db = create_engine(path)
         self.db.echo = debug
 
