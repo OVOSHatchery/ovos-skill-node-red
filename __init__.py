@@ -216,7 +216,7 @@ class NodeRedSkill(FallbackSkill):
     def handle_ping_node(self, message):
         self.emitter.emit(Message("node_red.send",
                                   {"payload": {"type": "node_red.ask",
-                                               "data": {"utterance", "hello"},
+                                               "data": {"utterance": "hello"},
                                                "context": message.context}}))
 
     def stop_reactor(self):
