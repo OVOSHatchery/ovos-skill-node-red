@@ -180,6 +180,10 @@ class NodeRedSkill(FallbackSkill):
             time.sleep(0.3)
 
     def handle_fallback(self, message):
+        # dont answer self
+        platform = message.context.get("platform", "mycroft")
+        if platform == "node_red":
+            return False
         # ask node
         self.success = False
         self.emitter.emit(Message("node_red.send",
@@ -452,6 +456,7 @@ class NodeRedFactory(WebSocketServerFactory):
             # add context for this message
             message.context["source"] = client.peer
             message.context["platform"] = "node_red"
+            message.context["ident"] = client.peer
 
             # This would be the place to check for blacklisted
             # messages/skills/intents per node instance
