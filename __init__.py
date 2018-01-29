@@ -45,7 +45,7 @@ class NodeRedSkill(FallbackSkill):
         if "timeout" not in self.settings:
             self.settings["timeout"] = 100
         if "ssl" not in self.settings:
-            self.settings["ssl"] = True
+            self.settings["ssl"] = False
         if "secret" not in self.settings:
             self.settings["secret"] = "test_key"
         if "ip_list" not in self.settings:
@@ -57,8 +57,6 @@ class NodeRedSkill(FallbackSkill):
         self.factory = None
 
     def initialize(self):
-        self.settings["ssl"] = False
-        self.settings["timeout"] = 10
         prot = "wss" if self.settings["ssl"] else "ws"
         self.address = unicode(prot) + u"://" + \
                        unicode(self.settings["host"]) + u":" + \
