@@ -52,11 +52,13 @@ class NodeRedSkill(FallbackSkill):
             self.settings["ip_list"] = []
         if "ip_blacklist" not in self.settings:
             self.settings["ip_blacklist"] = True
-        self.waiting = False
+        self.waiting_for_node = False
+        self.waiting_for_mycroft = False
         self.clients = []
         self.factory = None
 
     def initialize(self):
+        self.settings["ssl"] = False
         prot = "wss" if self.settings["ssl"] else "ws"
         self.address = unicode(prot) + u"://" + \
                        unicode(self.settings["host"]) + u":" + \
@@ -65,8 +67,6 @@ class NodeRedSkill(FallbackSkill):
         self.factory.protocol = NodeRedProtocol
         self.factory.settings = self.settings
         self.factory.bind(self.emitter)
-        #self.node_process = Process(target=self.connect_to_node)
-        #self.node_process.start()
         self.node_process = Thread(target=self.connect_to_node)
         self.node_process.setDaemon(True)
         self.node_process.start()
@@ -78,6 +78,9 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("node_red.disconnect", self.handle_node_disconnect)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
         self.emitter.on("node_red.send", self.handle_send)
+        # node ask mycroft
+        self.emitter.on("recognizer_loop:utterance", self.handle_node_query)
+        self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
         self.register_fallback(self.handle_fallback, 99)
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
@@ -152,35 +155,48 @@ class NodeRedSkill(FallbackSkill):
         except Exception as e:
             LOG.error(e)
 
-    def handle_node_question(self, message):
-        ''' capture speak answers for queries from node red '''
-        # forward speak messages to node if that is the target
+    def handle_node_query(self, message):
+        message.context = message.context or {}
         client_name = message.context.get("client_name", "")
         if client_name == "node_red":
+            self.waiting_for_mycroft = message.context.get("destinatary")
+
+    def handle_node_question(self, message):
+        ''' capture speak answers for queries from node red '''
+        message.context = message.context or {}
+        client_name = message.context.get("client_name", "")
+        # forward speak messages to node if that is the target
+        if message.type == "complete_intent_failure" and \
+                self.waiting_for_mycroft:
+            self.factory.send_message(self.waiting_for_mycroft, message)
+            self.waiting_for_mycroft = None
+        elif client_name == "node_red":
             peer = message.context.get("destinatary")
             if peer and self.factory is not None:
                 self.factory.send_message(peer, message)
 
     def handle_node_answer(self, message):
         ''' node answered us, signal end of fallback '''
+        message.context = message.context or {}
         destinatary = message.context.get("destinatary", "")
-        if destinatary == "node_fallback" and self.waiting:
-            self.waiting = False
+        if destinatary == "node_fallback" and self.waiting_for_node:
+            self.waiting_for_node = False
             self.success = True
 
     def handle_node_failure(self, message):
         ''' node answered us, signal end of fallback '''
-        self.waiting = False
+        self.waiting_for_node = False
         self.success = False
 
-    def wait(self):
+    def wait_for_node(self):
         start = time.time()
-        self.waiting = True
-        while self.waiting and time.time() - start < self.settings["timeout"]:
+        self.waiting_for_node = True
+        while self.waiting_for_node and time.time() - start < self.settings["timeout"]:
             time.sleep(0.3)
 
     def handle_fallback(self, message):
         # dont answer self
+        message.context = message.context or {}
         platform = message.context.get("platform", "mycroft")
         if platform == "node_red":
             return False
@@ -192,8 +208,8 @@ class NodeRedSkill(FallbackSkill):
                                                "context":
                                                    message.context}}))
 
-        self.wait()
-        if self.waiting:
+        self.wait_for_node()
+        if self.waiting_for_node:
             self.emitter.emit(message.reply("node_red.timeout", message.data))
         return self.success
 
@@ -227,6 +243,10 @@ class NodeRedSkill(FallbackSkill):
                            self.handle_node_failure)
         self.emitter.remove("node_red.send", self.handle_send)
         self.emitter.remove("speak", self.handle_node_question)
+        self.emitter.remove("recognizer_loop:utterance",
+                           self.handle_node_query)
+        self.emitter.remove("complete_intent_failure",
+                          self.handle_node_question)
         self.node_process.join()
         self.stop_reactor()
         super(NodeRedSkill, self).shutdown()

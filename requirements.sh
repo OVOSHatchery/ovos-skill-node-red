@@ -35,5 +35,5 @@ else
     sudo npm install -g --unsafe-perm node-red
 fi
 
-sudo apt-get install openssl
+apt-get install libssl-dev
 
