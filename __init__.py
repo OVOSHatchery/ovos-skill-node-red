@@ -217,8 +217,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.emit(Message("node_red.send",
                                   {"payload": {"type": "node_red.ask",
                                                "data": {"utterance", "hello"},
-                                               "context": message.context},
-                                   "peer": self.client, "isBinary": False}))
+                                               "context": message.context}}))
 
     def stop_reactor(self):
         """Stop the reactor and join the reactor thread until it stops.
