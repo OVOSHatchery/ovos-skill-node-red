@@ -43,7 +43,7 @@ class NodeRedSkill(FallbackSkill):
         if "key" not in self.settings:
             self.settings["key"] = self._dir + '/certs/red.key'
         if "timeout" not in self.settings:
-            self.settings["timeout"] = 10
+            self.settings["timeout"] = 100
         if "ssl" not in self.settings:
             self.settings["ssl"] = True
         if "secret" not in self.settings:
@@ -53,11 +53,12 @@ class NodeRedSkill(FallbackSkill):
         if "ip_blacklist" not in self.settings:
             self.settings["ip_blacklist"] = True
         self.waiting = False
-        self.client = None
+        self.clients = []
         self.factory = None
 
     def initialize(self):
         self.settings["ssl"] = False
+        self.settings["timeout"] = 10
         prot = "wss" if self.settings["ssl"] else "ws"
         self.address = unicode(prot) + u"://" + \
                        unicode(self.settings["host"]) + u":" + \
@@ -76,6 +77,7 @@ class NodeRedSkill(FallbackSkill):
 
         self.emitter.on("speak", self.handle_node_answer)
         self.emitter.on("node_red.open", self.handle_node_connect)
+        self.emitter.on("node_red.disconnect", self.handle_node_disconnect)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
         self.emitter.on("node_red.send", self.handle_send)
         self.emitter.on("speak", self.handle_node_question)
@@ -83,7 +85,12 @@ class NodeRedSkill(FallbackSkill):
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
 
     def handle_node_connect(self, message):
-        self.client = message.data.get("peer")
+        self.clients.append(message.data.get("peer"))
+
+    def handle_node_disconnect(self, message):
+        peer = message.data.get("peer")
+        if peer in self.clients:
+            self.clients.remove(peer)
 
     def connect_to_node(self):
         if self.settings["ssl"]:
@@ -181,10 +188,11 @@ class NodeRedSkill(FallbackSkill):
                                   {"payload": {"type": "node_red.ask",
                                                "data": message.data,
                                                "context":
-                                                   message.context},
-                                   "peer": self.client}))
+                                                   message.context}}))
 
         self.wait()
+        if self.waiting:
+            self.emitter.emit(message.reply("node_red.timeout", message.data))
         return self.success
 
     def handle_ping_node(self, message):
@@ -316,7 +324,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         context = {"source": self.peer}
         self.factory.emitter_send("node_red.open", data, context)
 
-    def onMessage(self, payload, isBinary):
+    def onMessage(self, payload, isBinary=False):
         if isBinary:
             LOG.info(
                 "Binary message received: {0} bytes".format(len(payload)))
@@ -438,7 +446,6 @@ class NodeRedFactory(WebSocketServerFactory):
         client_protocol, ip, sock_num = client.peer.split(":")
         # TODO update any client data you may want to store, ip, timestamp
         # etc.
-
         if isBinary:
             # TODO receive files ?
             pass
@@ -460,7 +467,7 @@ class NodeRedFactory(WebSocketServerFactory):
                 # node is asking us something
                 message.context["client_name"] = "node_red"
                 message.context["destinatary"] = client.peer
-                message.type = "recognize_loop:utterance"
+                message.type = "recognizer_loop:utterance"
             elif message.type == "node_red.intent_failure":
                 message.context["client_name"] = "node_red"
                 message.context["destinatary"] = client.peer
