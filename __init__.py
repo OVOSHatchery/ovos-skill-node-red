@@ -54,7 +54,6 @@ class NodeRedSkill(FallbackSkill):
             self.settings["ip_blacklist"] = True
         self.waiting_for_node = False
         self.waiting_for_mycroft = False
-        self.clients = []
         self.factory = None
 
     def initialize(self):
@@ -73,25 +72,16 @@ class NodeRedSkill(FallbackSkill):
 
         LOG.info("Listening for node red connections on " + self.address)
 
-        self.emitter.on("speak", self.handle_node_answer)
-        self.emitter.on("node_red.open", self.handle_node_connect)
-        self.emitter.on("node_red.disconnect", self.handle_node_disconnect)
+        #self.emitter.on("speak", self.handle_node_answer)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
         self.emitter.on("node_red.send", self.handle_send)
         # node ask mycroft
         self.emitter.on("recognizer_loop:utterance", self.handle_node_query)
         self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
+
         self.register_fallback(self.handle_fallback, 99)
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
-
-    def handle_node_connect(self, message):
-        self.clients.append(message.data.get("peer"))
-
-    def handle_node_disconnect(self, message):
-        peer = message.data.get("peer")
-        if peer in self.clients:
-            self.clients.remove(peer)
 
     def connect_to_node(self):
         if self.settings["ssl"]:
@@ -130,7 +120,6 @@ class NodeRedSkill(FallbackSkill):
             LOG.error("factory not ready")
             return
         try:
-            LOG.info(str(NodeRedFactory.clients))
             if is_file:
                 # TODO send file
                 self.emitter.emit(message.reply("node_red.send.error",
@@ -164,24 +153,17 @@ class NodeRedSkill(FallbackSkill):
     def handle_node_question(self, message):
         ''' capture speak answers for queries from node red '''
         message.context = message.context or {}
+        destinatary = message.context.get("destinatary", "")
         client_name = message.context.get("client_name", "")
         # forward speak messages to node if that is the target
-        if message.type == "complete_intent_failure" and \
-                self.waiting_for_mycroft:
-            self.factory.send_message(self.waiting_for_mycroft, message)
-            self.waiting_for_mycroft = None
-        elif client_name == "node_red":
-            peer = message.context.get("destinatary")
-            if peer and self.factory is not None:
-                self.factory.send_message(peer, message)
-
-    def handle_node_answer(self, message):
-        ''' node answered us, signal end of fallback '''
-        message.context = message.context or {}
-        destinatary = message.context.get("destinatary", "")
         if destinatary == "node_fallback" and self.waiting_for_node:
             self.waiting_for_node = False
             self.success = True
+        elif message.type == "complete_intent_failure" and self.waiting_for_mycroft:
+            self.factory.broadcast_message(message)
+            self.waiting_for_mycroft = False
+        elif client_name == "node_red" and destinatary:
+            self.factory.broadcast_message(message)
 
     def handle_node_failure(self, message):
         ''' node answered us, signal end of fallback '''
@@ -211,6 +193,7 @@ class NodeRedSkill(FallbackSkill):
         self.wait_for_node()
         if self.waiting_for_node:
             self.emitter.emit(message.reply("node_red.timeout", message.data))
+            self.waiting_for_node = False
         return self.success
 
     def handle_ping_node(self, message):
@@ -236,8 +219,6 @@ class NodeRedSkill(FallbackSkill):
                 p.cancel()
 
     def shutdown(self):
-        self.emitter.remove("speak", self.handle_node_answer)
-        self.emitter.remove("node_red.open", self.handle_node_connect)
         self.emitter.remove("node_red.intent_failure",
                            self.handle_node_failure)
         self.emitter.remove("node_red.send", self.handle_send)
@@ -246,6 +227,7 @@ class NodeRedSkill(FallbackSkill):
                            self.handle_node_query)
         self.emitter.remove("complete_intent_failure",
                           self.handle_node_question)
+        self.factory.shutdown()
         self.node_process.join()
         self.stop_reactor()
         super(NodeRedSkill, self).shutdown()
@@ -314,8 +296,8 @@ class NodeRedProtocol(WebSocketServerProtocol):
             usernamePasswordEncoded = usernamePasswordEncoded.split()
             usernamePasswordDecoded = base64.b64decode(
                 usernamePasswordEncoded[1])
-            username, api = usernamePasswordDecoded.split(":")
-        context = {"source": self.peer}
+            self.name, api = usernamePasswordDecoded.split(":")
+        context = {"source": request.peer}
         self.platform = "node_red"
         # send message to internal mycroft bus
         data = {"peer": request.peer, "headers": request.headers}
@@ -393,8 +375,9 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def broadcast_message(cls, data):
         if isinstance(data, Message):
-            data = Message.serialize(data)
-        payload = repr(json.dumps(data))
+            payload = Message.serialize(data)
+        else:
+            payload = repr(json.dumps(data))
         for c in set(cls.clients):
             c = cls.clients[c]["object"]
             reactor.callFromThread(c.sendMessage, payload)
@@ -407,10 +390,13 @@ class NodeRedFactory(WebSocketServerFactory):
         # mycroft_ws
         self.emitter = None
 
-    def shutdown(self):
-        for peer in self.clients:
-            client = self.clients[peer]["object"]
+    @classmethod
+    def shutdown(cls):
+        while len(cls.clients):
+            peer = cls.clients.keys()[0]
+            client = cls.clients[peer]["object"]
             client.sendClose()
+            cls.clients.pop(peer)
 
     def bind(self, emitter):
         self.emitter = emitter
