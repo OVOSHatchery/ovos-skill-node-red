@@ -116,6 +116,10 @@ class NodeRedSkill(FallbackSkill):
         msg = message.data.get("payload")
         is_file = message.data.get("isBinary", False)
         peer = message.data.get("peer")
+        ident = message.context.get("ident")
+        if not peer and ident:
+            name = ident.split(":")[0]
+            peer = ":".join(ident.split(":")[1:])
         if self.factory is None:
             LOG.error("factory not ready")
             return
@@ -155,15 +159,27 @@ class NodeRedSkill(FallbackSkill):
         message.context = message.context or {}
         destinatary = message.context.get("destinatary", "")
         client_name = message.context.get("client_name", "")
-        # forward speak messages to node if that is the target
+        # capture answers from node
         if destinatary == "node_fallback" and self.waiting_for_node:
             self.waiting_for_node = False
             self.success = True
-        elif message.type == "complete_intent_failure" and self.waiting_for_mycroft:
-            self.factory.broadcast_message(message)
+            return
+        # forward speak messages to node if that is the target
+        if message.type == "complete_intent_failure" and self.waiting_for_mycroft:
             self.waiting_for_mycroft = False
-        elif client_name == "node_red" and destinatary:
+
+        peers = self.factory.get_peer_by_name("answer")
+        if not len(peers):
             self.factory.broadcast_message(message)
+        else:
+            for peer in peers:
+                self.emitter.emit(message.reply("node_red.send",
+                                          {"payload": {"type": message.type,
+                                                       "data": message.data,
+                                                       "context":
+                                                           message.context},
+                                           "peer": peer}))
+
 
     def handle_node_failure(self, message):
         ''' node answered us, signal end of fallback '''
@@ -184,20 +200,25 @@ class NodeRedSkill(FallbackSkill):
             return False
         # ask node
         self.success = False
-        self.emitter.emit(Message("node_red.send",
-                                  {"payload": {"type": "node_red.ask",
-                                               "data": message.data,
-                                               "context":
-                                                   message.context}}))
+        peers = self.factory.get_peer_by_name("fallback")
+        for peer in peers:
+            self.emitter.emit(message.reply("node_red.send",
+                                      {"payload": {"type": "node_red.ask",
+                                                   "data": message.data,
+                                                   "context":
+                                                       message.context},
+                                       "peer": peer}))
 
-        self.wait_for_node()
-        if self.waiting_for_node:
-            self.emitter.emit(message.reply("node_red.timeout", message.data))
-            self.waiting_for_node = False
+            self.wait_for_node()
+            if self.waiting_for_node:
+                self.emitter.emit(message.reply("node_red.timeout", message.data))
+                self.waiting_for_node = False
+            elif self.success:
+                return self.success
         return self.success
 
     def handle_ping_node(self, message):
-        self.emitter.emit(Message("node_red.send",
+        self.emitter.emit(message.reply("node_red.send",
                                   {"payload": {"type": "node_red.ask",
                                                "data": {"utterance": "hello"},
                                                "context": message.context}}))
@@ -297,7 +318,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
             usernamePasswordDecoded = base64.b64decode(
                 usernamePasswordEncoded[1])
             self.name, api = usernamePasswordDecoded.split(":")
-        context = {"source": request.peer}
+        context = {"source": self.peer}
         self.platform = "node_red"
         # send message to internal mycroft bus
         data = {"peer": request.peer, "headers": request.headers}
@@ -360,6 +381,15 @@ class NodeRedProtocol(WebSocketServerProtocol):
 # websocket connection factory
 class NodeRedFactory(WebSocketServerFactory):
     clients = {}
+
+    @classmethod
+    def get_peer_by_name(cls, name):
+        names = []
+        for peer in cls.clients:
+            peer_name = cls.clients[peer]["name"]
+            if name == peer_name:
+                names.append(peer)
+        return names
 
     @classmethod
     def send_message(cls, peer, data):
@@ -427,7 +457,7 @@ class NodeRedFactory(WebSocketServerFactory):
             self.unregister_client(client, reason=u"Unknown ip")
             return
         self.clients[client.peer] = {"object": client, "status":
-            "connected", "platform": platform}
+            "connected", "platform": platform, "name": client.name}
 
     def unregister_client(self, client, code=3078,
                           reason=u"unregister client request"):
@@ -461,7 +491,7 @@ class NodeRedFactory(WebSocketServerFactory):
             # add context for this message
             message.context["source"] = client.peer
             message.context["platform"] = "node_red"
-            message.context["ident"] = client.peer
+            message.context["ident"] = client.name + ":" + client.peer
 
             # This would be the place to check for blacklisted
             # messages/skills/intents per node instance
