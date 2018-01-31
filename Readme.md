@@ -1,8 +1,7 @@
 # node red fallback skill
 
 
-Node Red - Mycroft interface, on intent failure this skill will trigger node
-red
+[Node Red](https://nodered.org/) - Mycroft interface, on intent failure this skill will trigger node red
 
 
 It also allows node red to ask mycroft
@@ -13,6 +12,7 @@ This works by opening a websocket and doing some messagebus magic
 
 beginners and non technical users can now leverage visual programming and
 easily extend mycroft functionality
+
 
 
 # Sample flow
