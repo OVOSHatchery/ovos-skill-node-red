@@ -36,5 +36,3 @@ else
 fi
 
 sudo apt-get install libssl-dev
-sudo systemctl enable nodered.service
-
