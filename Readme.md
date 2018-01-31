@@ -22,7 +22,7 @@ flows should open a websocket connection to communicate with mycroft
 
     ws//username:secret@127.0.0.1:6789
 
-[!picture]("flows.jpg")
+![picture]("flows.jpg")
 
 
 # Usage
