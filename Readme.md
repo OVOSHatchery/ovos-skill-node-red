@@ -23,11 +23,19 @@ flows should open a websocket connection to communicate with mycroft
     ws//username:secret@127.0.0.1:6789
 
 TODO pic
+[!picture]("flows.jpg")
 
 
 # Usage
 
-TODO
+    Input: ping node red
+    Mycroft: node red says hello
+
+    Input: echo
+    Mycroft: this is echo
+
+    Input: what does verge say
+    Mycroft: Leading headline from the Verge: XXX
 
 
 # new internal mycroft-core messages
@@ -115,16 +123,62 @@ allows using ssl in the websocket, create self signed certificates if none are
 
 # fallback logs
 
-TODO
+    14:52:09.712 - SKILLS - DEBUG - {"type": "recognizer_loop:utterance", "data": {"utterances": ["echo"]}, "context": null}
+    14:52:09.717 - SKILLS - DEBUG - {"type": "intent_failure", "data": {"lang": "en-us", "utterance": "echo"}, "context": {}}
+    14:52:09.718 - mycroft.skills.padatious_service:handle_fallback:101 - DEBUG - Padatious fallback attempt: echo
+    14:52:09.722 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.start", "data": {"handler": "fallback"}, "context": null}
+    14:52:09.761 - SKILLS - DEBUG - {"type": "node_red.send", "data": {"peer": "tcp4:127.0.0.1:35390", "payload": {"type": "node_red.ask", "data": {"lang": "en-us", "utterance": "echo"}, "context": {}}}, "context": {}}
+    14:52:09.762 - fallback-node-red__init__:handle_send:119 - INFO - sending
+    14:52:09.780 - fallback-node-red__init__:onMessage:386 - INFO - Text message received: {"type": "node_red.answer", "data":{"utterance": "this is the echo"}, "context":{}}
+    14:52:09.789 - SKILLS - DEBUG - {"type": "node_red.send.success", "data": {"peer": "tcp4:127.0.0.1:35390", "payload": {"data": {"lang": "en-us", "utterance": "echo"}, "type": "node_red.ask", "context": {}}}, "context": {}}
+    14:52:09.790 - fallback-node-red__init__:process_message:513 - INFO - processing message from client: tcp4:127.0.0.1:35394
+    14:52:09.796 - SKILLS - DEBUG - {"type": "speak", "data": {"utterance": "this is the echo"}, "context": {"source": "tcp4:127.0.0.1:35394", "ident": "test:tcp4:127.0.0.1:35394", "platform": "node_red", "destinatary": "node_fallback"}}
+    14:52:10.022 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.complete", "data": {"handler": "fallback", "fallback_handler": "NodeRedSkill.handle_fallback"}, "context": null}
 
 # node question logs
 
-TODO
+    14:45:42.967 - fallback-node-red__init__:onMessage:386 - INFO - Text message received: {"type": "node_red.query", "data":{"utterances" : ["node-red says hello world"]}, "context":{}}
+    14:45:42.970 - fallback-node-red__init__:process_message:513 - INFO - processing message from client: tcp4:127.0.0.1:33718
+    14:45:42.977 - SKILLS - DEBUG - {"type": "recognizer_loop:utterance", "data": {"utterances": ["node-red says hello world"]}, "context": {"source": "tcp4:127.0.0.1:33718", "client_name": "node_red", "ident": "test:tcp4:127.0.0.1:33718", "platform": "node_red", "destinatary": "tcp4:127.0.0.1:33718"}}
+    14:45:43.087 - SKILLS - DEBUG - {"type": "-4273373871611945018:HelloWorldIntent", "data": {"confidence": 1.0, "target": null, "intent_type": "-4273373871611945018:HelloWorldIntent", "HelloWorldKeyword": "hello world", "__tags__": [{"end_token": 3, "start_token": 2, "from_context": false, "entities": [{"confidence": 1.0, "data": [["hello world", "HelloWorldKeyword"]], "key": "hello world", "match": "hello world"}], "key": "hello world", "match": "hello world"}], "utterance": "node-red says hello world"}, "context": {"ident": "test:tcp4:127.0.0.1:33718", "target": null, "platform": "node_red", "client_name": "node_red", "destinatary": "tcp4:127.0.0.1:33718", "source": "tcp4:127.0.0.1:33718"}}
+    14:45:43.093 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.start", "data": {"handler": "HelloWorldSkill.handle_hello_world_intent"}, "context": null}
+    14:45:43.126 - SKILLS - DEBUG - {"type": "speak", "data": {"expect_response": false, "utterance": "Hello world"}, "context": {"ident": "test:tcp4:127.0.0.1:33718", "target": null, "platform": "node_red", "client_name": "node_red", "destinatary": "tcp4:127.0.0.1:33718", "source": "tcp4:127.0.0.1:33718"}}
+    14:45:43.133 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.complete", "data": {"handler": "HelloWorldSkill.handle_hello_world_intent"}, "context": null}
+    14:45:43.173 - SKILLS - DEBUG - {"type": "node_red.send.success", "data": {"peer": "broadcast", "payload": "{\"data\": {\"expect_response\": false, \"utterance\": \"Hello world\"}, \"type\": \"speak\", \"context\": {\"ident\": \"test:tcp4:127.0.0.1:33718\", \"target\": null, \"platform\": \"node_red\", \"client_name\": \"node_red\", \"destinatary\": \"tcp4:127.0.0.1:33718\", \"source\": \"tcp4:127.0.0.1:33718\"}}"}, "context": {"ident": "test:tcp4:127.0.0.1:33718", "target": null, "platform": "node_red", "client_name": "node_red", "destinatary": "tcp4:127.0.0.1:33718", "source": "tcp4:127.0.0.1:33718"}}
+
+
+# asking node red from an intent logs
+
+    14:43:18.865 - SKILLS - DEBUG - {"type": "-7976428735325913512:pingnode.intent", "data": {"utterance": "ping node red"}, "context": null}
+    14:43:18.866 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.complete", "data": {"handler": "fallback", "fallback_handler": "PadatiousService.handle_fallback"}, "context": null}
+    14:43:18.869 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.start", "data": {"handler": "NodeRedSkill.handle_ping_node"}, "context": null}
+    14:43:18.893 - SKILLS - DEBUG - {"type": "node_red.send", "data": {"payload": {"type": "node_red.ask", "data": {"utterance": "hello"}, "context": null}}, "context": {}}
+    14:43:18.894 - fallback-node-red__init__:handle_send:119 - INFO - sending
+    14:43:18.901 - fallback-node-red__init__:onMessage:386 - INFO - Text message received: {"type": "node_red.answer", "data":{"utterance": "node-red says hey"}, "context":{}}
+    14:43:18.904 - fallback-node-red__init__:process_message:513 - INFO - processing message from client: tcp4:127.0.0.1:33718
+    14:43:18.905 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.complete", "data": {"handler": "NodeRedSkill.handle_ping_node"}, "context": null}
+    14:43:18.905 - SKILLS - DEBUG - {"type": "node_red.send.broadcast", "data": {"peer": null, "payload": {"data": {"utterance": "hello"}, "type": "node_red.ask", "context": null}}, "context": {}}
+    14:43:18.945 - SKILLS - DEBUG - {"type": "speak", "data": {"utterance": "node-red says hey"}, "context": {"source": "tcp4:127.0.0.1:33718", "ident": "test:tcp4:127.0.0.1:33718", "platform": "node_red", "destinatary": "node_fallback"}}
+
 
 # extra
 
-other skill can use the new bus messages to send data to node red, the node
-red entry point can be targeted if desired by specifying the peer
+other skills can use the new bus messages to send data to node red, the node
+red entry point can be targeted if desired by specifying the peer in the
+message data, if no peer is specified message is broadcast
+
+
+1 peer = 1 websocket connection inside a node red flow
+
+
+    def handle_ping_node(self, message):
+        self.emitter.emit(message.reply("node_red.send",
+                                        {"payload": {"type": "node_red.ask",
+                                                     "data": {
+                                                         "utterance": "hello"},
+                                                     "context": message
+                                                     .context},
+                                         "peer": None}))
 
 # TODOS and known bugs
 
