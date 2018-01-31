@@ -35,5 +35,6 @@ else
     sudo npm install -g --unsafe-perm node-red
 fi
 
-apt-get install libssl-dev
+sudo apt-get install libssl-dev
+sudo systemctl enable nodered.service
 
