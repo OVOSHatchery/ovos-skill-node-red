@@ -79,18 +79,16 @@ flows should open a websocket connection to communicate with mycroft
 # security
 
 
-allows using ssl in the websocket, create self signed certificates if none are
- provided, however node red will not [accept self signed](https://stackoverflow.com/a/30438204) out of the box
+allows using ssl in the websocket, automatically creates self signed certificates if none are provided, however node red will not [accept self signed](https://stackoverflow.com/a/30438204) out of the box
 
 
- supports a safe-mode setting, unexpected message types from node red will be
- blocked
+supports a safe-mode setting, unexpected message types from node red will be blocked
 
 
- requires a secret key in the headers to connect to websocket
+requires a secret key in the headers to connect to websocket
 
 
- supports ip blacklist / whitelist
+supports ip blacklist / whitelist
 
 
 
