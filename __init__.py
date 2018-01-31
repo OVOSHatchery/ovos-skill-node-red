@@ -53,6 +53,8 @@ class NodeRedSkill(FallbackSkill):
             self.settings["safe_mode"] = False
         if "message_whitelist" not in self.settings:
             self.settings["message_whitelist"] = []
+        if "priority" not in self.settings:
+            self.settings["priority"] = 50
         self.waiting_for_node = False
         self.waiting_for_mycroft = False
         self.factory = None
@@ -80,7 +82,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
 
-        self.register_fallback(self.handle_fallback, 99)
+        self.register_fallback(self.handle_fallback, self.settings["priority"])
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
 
     def connect_to_node(self):

@@ -169,6 +169,7 @@ message data, if no peer is specified message is broadcast
 
 1 peer = 1 websocket connection inside a node red flow
 
+
 peer can be a websocket name ( fallback ) or socket ( tcp4:127.0.0.1:33718 )
 
 
@@ -181,11 +182,14 @@ peer can be a websocket name ( fallback ) or socket ( tcp4:127.0.0.1:33718 )
                                                      .context},
                                          "peer": None}))
 
+
 each socket connection can provide a name on connection
 
     ws//name_for_this_socket_connection:secret@127.0.0.1:6789
 
+
 fallback skill always searches for a connection named "fallback", on fail broadcasts
+
 
 answers to node red searches for a connection named "answer", on fail broadcasts
 
