@@ -203,3 +203,9 @@ answers to node red searches for a connection named "answer", on fail broadcasts
 - TODO make ssl a default
 - BUG msm node red install fails in non-raspberry pi
 - TODO node red install for non debian based OS
+
+
+# liked this?
+
+- https://www.patreon.com/jarbasAI
+- https://www.paypal.me/jarbasAI
