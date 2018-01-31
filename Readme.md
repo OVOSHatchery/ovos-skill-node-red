@@ -128,8 +128,9 @@ red entry point can be targeted if desired by specifying the peer
 
 # TODOS and known bugs
 
-- launch node red on start up, currently needs to be started by user
-- self signed ssl fails
-- make ssl a default
-- node red install fails in non-raspberry pi
-- node red install for non debian based OS
+- TODO launch node red on start up, currently needs to be started by user
+- BUG self signed ssl fails
+- TODO get a PEM-encoding of the self-signed certificate and include it as a CA. Since the certificate is self-signed, it acts as its own CA and therefore can be used to verify itself.
+- TODO make ssl a default
+- BUG node red install fails in non-raspberry pi
+- TODO node red install for non debian based OS
