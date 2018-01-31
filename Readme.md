@@ -194,6 +194,9 @@ fallback skill always searches for a connection named "fallback", on fail broadc
 answers to node red searches for a connection named "answer", on fail broadcasts
 
 
+node red can be running in other machine as long as it can access mycroft ip address to initiate the connection
+
+
 # TODOS and known bugs
 
 - TODO settingsmeta.json
