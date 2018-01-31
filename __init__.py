@@ -187,13 +187,19 @@ class NodeRedSkill(FallbackSkill):
             self.factory.broadcast_message(message)
             self.emitter.emit(message.reply("node_red.send.success",
                                             {"peer": "broadcast",
-                                             "payload": message.serialize()}))
+                                             "payload": {
+                                                 "type": message.type,
+                                                 "data": message.data,
+                                                 "context": message.context}}))
         else:
             for peer in peers:
                 self.factory.send_message(peer, message)
                 self.emitter.emit(message.reply("node_red.send.success",
                                                 {"peer": peer,
-                                                 "payload": message.serialize()}))
+                                                 "payload": {
+                                                     "type": message.type,
+                                                     "data": message.data,
+                                                     "context": message.context}}))
 
     def handle_node_failure(self, message):
         ''' node answered us, signal end of fallback '''
