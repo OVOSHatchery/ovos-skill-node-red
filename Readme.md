@@ -116,6 +116,8 @@ supports ip blacklist / whitelist
             self.settings["message_whitelist"] = []
         if "safe_mode" not in self.settings:
             self.settings["safe_mode"] = False
+        if "priority" not in self.settings:
+            self.settings["priority"] = 50
 
 
 # fallback logs
