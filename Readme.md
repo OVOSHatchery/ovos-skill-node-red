@@ -22,7 +22,6 @@ flows should open a websocket connection to communicate with mycroft
 
     ws//username:secret@127.0.0.1:6789
 
-TODO pic
 [!picture]("flows.jpg")
 
 
@@ -170,6 +169,8 @@ message data, if no peer is specified message is broadcast
 
 1 peer = 1 websocket connection inside a node red flow
 
+peer can be a websocket name ( fallback ) or socket ( tcp4:127.0.0.1:33718 )
+
 
     def handle_ping_node(self, message):
         self.emitter.emit(message.reply("node_red.send",
@@ -180,11 +181,21 @@ message data, if no peer is specified message is broadcast
                                                      .context},
                                          "peer": None}))
 
+each socket connection can provide a name on connection
+
+    ws//name_for_this_socket_connection:secret@127.0.0.1:6789
+
+fallback skill always searches for a connection named "fallback", on fail broadcasts
+
+answers to node red searches for a connection named "answer", on fail broadcasts
+
+
 # TODOS and known bugs
 
+- TODO settingsmeta.json
 - TODO launch node red on start up, currently needs to be started by user
 - BUG self signed ssl fails
 - TODO get a PEM-encoding of the self-signed certificate and include it as a CA. Since the certificate is self-signed, it acts as its own CA and therefore can be used to verify itself.
 - TODO make ssl a default
-- BUG node red install fails in non-raspberry pi
+- BUG msm node red install fails in non-raspberry pi
 - TODO node red install for non debian based OS

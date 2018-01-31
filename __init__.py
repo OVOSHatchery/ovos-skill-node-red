@@ -120,6 +120,13 @@ class NodeRedSkill(FallbackSkill):
         if not peer and ident:
             name = ident.split(":")[0]
             peer = ":".join(ident.split(":")[1:])
+        elif peer and ":" not in peer:
+            # name provided
+            peer = self.factory.get_peer_by_name(peer)
+            if not len(peer):
+                peer = None
+            else:
+                peer = peer[0]
         if self.factory is None:
             LOG.error("factory not ready")
             return
