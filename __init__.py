@@ -10,25 +10,22 @@ from os import makedirs
 import random
 from os.path import join, exists
 from threading import Thread
-from multiprocessing import Process
 import os
 import time
 import base64
 import json
+import unicodedata
 from twisted.internet import reactor, ssl
 from twisted.internet.error import ReactorNotRunning
 from autobahn.twisted.websocket import WebSocketServerProtocol, \
     WebSocketServerFactory
 from autobahn.websocket.types import ConnectionDeny
 
-from mycroft.messagebus.client.ws import WebsocketClient
 from mycroft.messagebus.message import Message
 from mycroft.skills.core import FallbackSkill
 from mycroft.util.log import LOG
 
 __author__ = "jarbas"
-
-NAME = "NodeRed-Mycroft"
 
 
 class NodeRedSkill(FallbackSkill):
@@ -43,7 +40,7 @@ class NodeRedSkill(FallbackSkill):
         if "key" not in self.settings:
             self.settings["key"] = self._dir + '/certs/red.key'
         if "timeout" not in self.settings:
-            self.settings["timeout"] = 100
+            self.settings["timeout"] = 15
         if "ssl" not in self.settings:
             self.settings["ssl"] = False
         if "secret" not in self.settings:
@@ -52,12 +49,15 @@ class NodeRedSkill(FallbackSkill):
             self.settings["ip_list"] = []
         if "ip_blacklist" not in self.settings:
             self.settings["ip_blacklist"] = True
+        if "safe_mode" not in self.settings:
+            self.settings["safe_mode"] = False
+        if "message_whitelist" not in self.settings:
+            self.settings["message_whitelist"] = []
         self.waiting_for_node = False
         self.waiting_for_mycroft = False
         self.factory = None
 
     def initialize(self):
-        self.settings["ssl"] = False
         prot = "wss" if self.settings["ssl"] else "ws"
         self.address = unicode(prot) + u"://" + \
                        unicode(self.settings["host"]) + u":" + \
@@ -72,7 +72,7 @@ class NodeRedSkill(FallbackSkill):
 
         LOG.info("Listening for node red connections on " + self.address)
 
-        #self.emitter.on("speak", self.handle_node_answer)
+        # self.emitter.on("speak", self.handle_node_answer)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
         self.emitter.on("node_red.send", self.handle_send)
         # node ask mycroft
@@ -129,22 +129,26 @@ class NodeRedSkill(FallbackSkill):
                 self.emitter.emit(message.reply("node_red.send.error",
                                                 {
                                                     "error": "binary files not supported",
-                                                    "peer": peer}))
+                                                    "peer": peer,
+                                                    "payload": msg}))
             elif peer is None:
                 # send message to client
                 self.factory.broadcast_message(msg)
                 self.emitter.emit(message.reply("node_red.send.broadcast",
-                                                {"peer": peer}))
+                                                {"peer": peer,
+                                                 "payload": msg}))
             else:
                 # send message to client
                 if self.factory.send_message(peer, msg):
                     self.emitter.emit(message.reply("node_red.send.success",
-                                                    {"peer": peer}))
+                                                    {"peer": peer,
+                                                     "payload": msg}))
                 else:
                     LOG.error("That client is not connected")
                     self.emitter.emit(message.reply("node_red.send.error",
                                                     {"error": "unknown error",
-                                                     "peer": peer}))
+                                                     "peer": peer,
+                                                     "payload": msg}))
         except Exception as e:
             LOG.error(e)
 
@@ -160,6 +164,9 @@ class NodeRedSkill(FallbackSkill):
         destinatary = message.context.get("destinatary", "")
         client_name = message.context.get("client_name", "")
         # capture answers from node
+        if not self.waiting_for_mycroft and not self.waiting_for_node:
+            return
+
         if destinatary == "node_fallback" and self.waiting_for_node:
             self.waiting_for_node = False
             self.success = True
@@ -171,15 +178,15 @@ class NodeRedSkill(FallbackSkill):
         peers = self.factory.get_peer_by_name("answer")
         if not len(peers):
             self.factory.broadcast_message(message)
+            self.emitter.emit(message.reply("node_red.send.success",
+                                            {"peer": "broadcast",
+                                             "payload": message.serialize()}))
         else:
             for peer in peers:
-                self.emitter.emit(message.reply("node_red.send",
-                                          {"payload": {"type": message.type,
-                                                       "data": message.data,
-                                                       "context":
-                                                           message.context},
-                                           "peer": peer}))
-
+                self.factory.send_message(peer, message)
+                self.emitter.emit(message.reply("node_red.send.success",
+                                                {"peer": peer,
+                                                 "payload": message.serialize()}))
 
     def handle_node_failure(self, message):
         ''' node answered us, signal end of fallback '''
@@ -189,7 +196,8 @@ class NodeRedSkill(FallbackSkill):
     def wait_for_node(self):
         start = time.time()
         self.waiting_for_node = True
-        while self.waiting_for_node and time.time() - start < self.settings["timeout"]:
+        while self.waiting_for_node and time.time() - start < self.settings[
+            "timeout"]:
             time.sleep(0.3)
 
     def handle_fallback(self, message):
@@ -201,27 +209,43 @@ class NodeRedSkill(FallbackSkill):
         # ask node
         self.success = False
         peers = self.factory.get_peer_by_name("fallback")
-        for peer in peers:
-            self.emitter.emit(message.reply("node_red.send",
-                                      {"payload": {"type": "node_red.ask",
-                                                   "data": message.data,
-                                                   "context":
-                                                       message.context},
-                                       "peer": peer}))
+        if len(peers):
+            for peer in peers:
+                self.emitter.emit(message.reply("node_red.send",
+                                                {"payload": {
+                                                    "type": "node_red.ask",
+                                                    "data": message.data,
+                                                    "context":
+                                                        message.context},
+                                                 "peer": peer}))
 
+                self.wait_for_node()
+                if self.waiting_for_node:
+                    self.emitter.emit(
+                        message.reply("node_red.timeout", message.data))
+                    self.waiting_for_node = False
+                elif self.success:
+                    break
+        else:
+            self.emitter.emit(message.reply("node_red.send",
+                                            {"payload": {
+                                                "type": "node_red.ask",
+                                                "data": message.data,
+                                                "context":
+                                                    message.context}}))
             self.wait_for_node()
             if self.waiting_for_node:
-                self.emitter.emit(message.reply("node_red.timeout", message.data))
+                self.emitter.emit(
+                    message.reply("node_red.timeout", message.data))
                 self.waiting_for_node = False
-            elif self.success:
-                return self.success
         return self.success
 
     def handle_ping_node(self, message):
         self.emitter.emit(message.reply("node_red.send",
-                                  {"payload": {"type": "node_red.ask",
-                                               "data": {"utterance": "hello"},
-                                               "context": message.context}}))
+                                        {"payload": {"type": "node_red.ask",
+                                                     "data": {
+                                                         "utterance": "hello"},
+                                                     "context": message.context}}))
 
     def stop_reactor(self):
         """Stop the reactor and join the reactor thread until it stops.
@@ -233,6 +257,11 @@ class NodeRedSkill(FallbackSkill):
                 reactor.stop()
             except ReactorNotRunning:
                 LOG.info("twisted reactor stopped")
+            except Exception as e:
+                LOG.error(e)
+
+        self.factory.shutdown()
+        self.factory = None
 
         reactor.callFromThread(stop_reactor)
         for p in reactor.getDelayedCalls():
@@ -240,17 +269,16 @@ class NodeRedSkill(FallbackSkill):
                 p.cancel()
 
     def shutdown(self):
+        self.node_process.join()
+        self.stop_reactor()
         self.emitter.remove("node_red.intent_failure",
-                           self.handle_node_failure)
+                            self.handle_node_failure)
         self.emitter.remove("node_red.send", self.handle_send)
         self.emitter.remove("speak", self.handle_node_question)
         self.emitter.remove("recognizer_loop:utterance",
-                           self.handle_node_query)
+                            self.handle_node_query)
         self.emitter.remove("complete_intent_failure",
-                          self.handle_node_question)
-        self.factory.shutdown()
-        self.node_process.join()
-        self.stop_reactor()
+                            self.handle_node_question)
         super(NodeRedSkill, self).shutdown()
 
 
@@ -354,7 +382,8 @@ class NodeRedProtocol(WebSocketServerProtocol):
                 "Binary message received: {0} bytes".format(len(payload)))
         else:
             LOG.info(
-                "Text message received: {0}".format(payload.decode('utf8')))
+                "Text message received: {0}".format(unicodedata.normalize(
+                    'NFKD', unicode(payload)).encode('ascii', 'ignore')))
 
         self.factory.process_message(self, payload, isBinary)
 
@@ -423,10 +452,13 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def shutdown(cls):
         while len(cls.clients):
-            peer = cls.clients.keys()[0]
-            client = cls.clients[peer]["object"]
-            client.sendClose()
-            cls.clients.pop(peer)
+            try:
+                peer = cls.clients.keys()[0]
+                client = cls.clients[peer]["object"]
+                client.sendClose()
+                cls.clients.pop(peer)
+            except Exception as e:
+                LOG.warning(e)
 
     def bind(self, emitter):
         self.emitter = emitter
@@ -509,7 +541,8 @@ class NodeRedFactory(WebSocketServerFactory):
             elif message.type == "node_red.intent_failure":
                 message.context["client_name"] = "node_red"
                 message.context["destinatary"] = client.peer
-            else:
+            elif self.settings["safe_mode"] and message.type not in \
+                    self.settings["message_whitelist"]:
                 LOG.warning("node red sent an unexpected message type, "
                             "it was suppressed: " + message.type)
                 return
