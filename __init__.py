@@ -58,6 +58,9 @@ class NodeRedSkill(FallbackSkill):
         self.waiting_for_node = False
         self.waiting_for_mycroft = False
         self.factory = None
+        self.conversing = False
+        self.converse_thread = Thread(target=self.converse_keepalive)
+        self.converse_thread.setDaemon(True)
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
@@ -77,6 +80,9 @@ class NodeRedSkill(FallbackSkill):
         # self.emitter.on("speak", self.handle_node_answer)
         self.emitter.on("node_red.intent_failure", self.handle_node_failure)
         self.emitter.on("node_red.send", self.handle_send)
+        self.emitter.on("node_red.converse.activate", self.handle_converse_on)
+        self.emitter.on("node_red.converse.deactivate",
+                        self.handle_converse_off)
         # node ask mycroft
         self.emitter.on("recognizer_loop:utterance", self.handle_node_query)
         self.emitter.on("complete_intent_failure", self.handle_node_question)
@@ -84,6 +90,10 @@ class NodeRedSkill(FallbackSkill):
 
         self.register_fallback(self.handle_fallback, self.settings["priority"])
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
+        self.register_intent_file("converse.enable.intent",
+                                  self.handle_converse_enable)
+        self.register_intent_file("converse.disable.intent",
+                                  self.handle_converse_disable)
 
     def connect_to_node(self):
         if self.settings["ssl"]:
@@ -180,6 +190,7 @@ class NodeRedSkill(FallbackSkill):
             self.waiting_for_node = False
             self.success = True
             return
+
         # forward speak messages to node if that is the target
         if message.type == "complete_intent_failure" and self.waiting_for_mycroft:
             self.waiting_for_mycroft = False
@@ -284,7 +295,8 @@ class NodeRedSkill(FallbackSkill):
                 p.cancel()
 
     def shutdown(self):
-        self.node_process.join()
+        self.converse_thread.join(2)
+        self.node_process.join(2)
         self.stop_reactor()
         self.emitter.remove("node_red.intent_failure",
                             self.handle_node_failure)
@@ -294,7 +306,62 @@ class NodeRedSkill(FallbackSkill):
                             self.handle_node_query)
         self.emitter.remove("complete_intent_failure",
                             self.handle_node_question)
+        self.emitter.remove("node_red.converse.activate",
+                            self.handle_converse_on)
+        self.emitter.remove("node_red.converse.deactivate",
+                            self.handle_converse_off)
         super(NodeRedSkill, self).shutdown()
+
+    def converse_keepalive(self):
+        start = time.time()
+        while self.conversing:
+            if time.time() - start >= 5 * 60:
+                # converse timed_out
+                self.make_active()
+                start = time.time()
+            time.sleep(1)
+
+    def handle_converse_enable(self, message):
+        if self.conversing:
+            self.speak_dialog("converse_on")
+        else:
+            self.speak_dialog("converse_enable")
+            self.handle_converse_on(message)
+
+    def handle_converse_disable(self, message):
+        if not self.conversing:
+            self.speak_dialog("converse_off")
+        else:
+            self.speak_dialog("converse_disable")
+            self.handle_converse_off(message)
+
+    def handle_converse_on(self, message):
+        self.conversing = True
+        self.make_active()
+        self.converse_thread.start()
+
+    def handle_converse_off(self, message):
+        self.conversing = False
+        self.converse_thread.join()
+
+    def converse(self, utterances, lang="en-us"):
+        if self.conversing:
+            self.emitter.emit(Message("node_red.send",
+                                            {"payload": {
+                                                "type": "node_red.converse",
+                                                "data": {"utterance":
+                                                             utterances[0]},
+                                                "context": {"source":
+                                                                self.name}}}))
+            self.success = False
+            self.wait_for_node()
+            if self.waiting_for_node:
+                self.emitter.emit(
+                    Message("node_red.timeout", {"source": self.name}))
+                self.waiting_for_node = False
+                return False
+            return self.success
+        return False
 
 
 def create_skill():
@@ -543,19 +610,23 @@ class NodeRedFactory(WebSocketServerFactory):
             # This would be the place to check for blacklisted
             # messages/skills/intents per node instance
 
-            # we could accept any kind of message for other purposes
+            # we can accept any kind of message for other purposes
+            message.context["client_name"] = "node_red"
+            message.context["destinatary"] = client.peer
             if message.type == "node_red.answer":
                 # node is answering us
                 message.type = "speak"
                 message.context["destinatary"] = "node_fallback"
             elif message.type == "node_red.query":
                 # node is asking us something
-                message.context["client_name"] = "node_red"
-                message.context["destinatary"] = client.peer
                 message.type = "recognizer_loop:utterance"
             elif message.type == "node_red.intent_failure":
-                message.context["client_name"] = "node_red"
-                message.context["destinatary"] = client.peer
+                # node red failed
+                message.data = {}
+            elif message.type == "node_red.converse.deactivate":
+                pass
+            elif message.type == "node_red.converse.activate":
+                pass
             elif self.settings["safe_mode"] and message.type not in \
                     self.settings["message_whitelist"]:
                 LOG.warning("node red sent an unexpected message type, "

@@ -7,11 +7,10 @@
 It also allows node red to ask mycroft
 
 
-This works by opening a websocket and doing some messagebus magic
+This [works by](https://github.com/JarbasAl/fallback-node-red/issues/2) opening a websocket and doing some messagebus magic
 
 
-beginners and non technical users can now leverage visual programming and
-easily extend mycroft functionality
+beginners and non technical users can now leverage visual programming and easily extend mycroft functionality
 
 
 
@@ -25,6 +24,44 @@ flows should open a websocket connection to communicate with mycroft
 ![picture](https://github.com/JarbasAl/fallback-node-red/blob/master/flows.jpg)
 
 
+# Importing the sample flow...
+
+    Go to https://github.com/JarbasAl/fallback-node-red/blob/master/sample_flow.txt
+    Copy the JSON text
+    Go to http://addressofmycroft:1880
+    In the upper righthand corner menu, choose... Import > Clipboard
+    This will open the "Import nodes window"
+    Paste the contents from the sample_flow.txt
+    Click on Import and the flow should appear
+    Next click on Deploy
+    After you deploy, the websocket nodes should say 'connected' if the skill was installed properly
+
+
+# Installing node red
+
+on raspbian
+
+    bash <(curl -sL https://raw.githubusercontent.com/node-red/raspbian-deb-package/master/resources/update-nodejs-and-nodered)
+
+on debian/ubuntu
+
+    curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash - sudo apt-get install -y nodejs
+    sudo apt-get install npm
+    sudo npm install -g --unsafe-perm node-red
+
+
+# Node red auto start
+
+node red must be running, it can be started with
+
+     node-red-start
+
+or made into a service
+
+    sudo systemctl enable nodered.service
+    sudo service nodered start
+    check to see if node-red is running at http://127.0.0.1:1880
+
 # Usage
 
     Input: ping node red
@@ -35,6 +72,18 @@ flows should open a websocket connection to communicate with mycroft
 
     Input: what does verge say
     Mycroft: Leading headline from the Verge: XXX
+
+    Input: make node a priority skill
+    Mycroft: node red is now triggered before mycroft
+
+    Input: make node a priority skill
+    Mycroft: node red is already a priority skill
+
+    Input: make node a fallback skill
+    Mycroft: node red restored to fallback skill
+
+    Input: make node a fallback skill
+    Mycroft: node red is already a fallback skill
 
 
 # new internal mycroft-core messages
@@ -61,7 +110,9 @@ flows should open a websocket connection to communicate with mycroft
 
 # expected external messages from mycroft to node red
 
-    "node_red.ask", {"utterance": ""}
+    "node_red.ask", {"utterance": ""} -> fallback/skill question
+
+    "node_red.converse", {"utterance": ""} -> converse stage utterance
 
     "speak", {"utterance": ""}
 
@@ -70,9 +121,13 @@ flows should open a websocket connection to communicate with mycroft
 
     "node_red.answer", {"utterance": ""} -> becomes "speak", {"utterance": ""}, {"destinatary": "node_fallback"}
 
-    "node_red.intent_failure", {"utterance": ""} -> ends waiting for fallback
+    "node_red.intent_failure", {"utterance": ""} -> ends waiting for fallback / returns false in converse
 
     "node_red.query", {"utterance": ""} -> becomes "recognizer_loop:utterance", {"utterances": [""]}, {"client_name": "node_red"}
+
+    "node_red.converse.activate" -> makes node red converse method always trigger first, keeps skill active until deactivated
+
+    "node_red.converse.deactivate" -> stops node red converse method from triggering first, resumes fallback skill mode
 
 
 

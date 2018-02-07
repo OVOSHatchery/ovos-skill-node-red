@@ -1,1 +1,1 @@
-sudo apt-get install libssl-dev
+apt-get install libssl-dev
