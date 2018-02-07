@@ -24,19 +24,6 @@ flows should open a websocket connection to communicate with mycroft
 ![picture](https://github.com/JarbasAl/fallback-node-red/blob/master/flows.jpg)
 
 
-# Importing the sample flow...
-
-    Go to https://github.com/JarbasAl/fallback-node-red/blob/master/sample_flow.txt
-    Copy the JSON text
-    Go to http://addressofmycroft:1880
-    In the upper righthand corner menu, choose... Import > Clipboard
-    This will open the "Import nodes window"
-    Paste the contents from the sample_flow.txt
-    Click on Import and the flow should appear
-    Next click on Deploy
-    After you deploy, the websocket nodes should say 'connected' if the skill was installed properly
-
-
 # Installing node red
 
 on raspbian
@@ -62,7 +49,22 @@ or made into a service
     sudo service nodered start
     check to see if node-red is running at http://127.0.0.1:1880
 
-# Usage
+
+# Importing the sample flow...
+
+    Go to https://github.com/JarbasAl/fallback-node-red/blob/master/sample_flow.txt
+    Copy the JSON text
+    Go to http://addressofmycroft:1880
+    In the upper righthand corner menu, choose... Import > Clipboard
+    This will open the "Import nodes window"
+    Paste the contents from the sample_flow.txt
+    Click on Import and the flow should appear
+    Next click on Deploy
+    After you deploy, the websocket nodes should say 'connected' if the skill was installed properly
+
+
+
+# Mycroft Usage
 
     Input: ping node red
     Mycroft: node red says hello
@@ -269,13 +271,10 @@ node red can be running in other machine as long as it can access mycroft ip add
 # TODOS and known bugs
 
 - TODO settingsmeta.json
-- TODO launch node red on start up, currently needs to be started by user
 - BUG self signed ssl fails
 - TODO get a PEM-encoding of the self-signed certificate and include it as a CA. Since the certificate is self-signed, it acts as its own CA and therefore can be used to verify itself.
 - TODO make ssl a default
-- BUG msm node red install fails in non-raspberry pi
-- TODO node red install for non debian based OS
-
+- TODO install node red intent
 
 # liked this?
 
