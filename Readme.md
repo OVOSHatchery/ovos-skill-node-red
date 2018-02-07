@@ -104,8 +104,11 @@ or made into a service
 
     "node_red.send.success", "data": {"peer": peer, "payload": {} }
 
-    "node_red.intent_failure" -> ends waiting for fallback
+    "node_red.intent_failure" -> ends waiting for fallback / returns False in converse
 
+    "node_red.converse.activate" -> makes node red converse method always trigger first, keeps skill active until deactivated
+
+    "node_red.converse.deactivate" -> stops node red converse method from triggering first, resumes fallback skill mode
 
 
 # expected external messages from mycroft to node red
@@ -216,6 +219,17 @@ supports ip blacklist / whitelist
 
 
 # extra
+
+if converse method is activated node red will work as a priority skill, all
+utterances will go to node red until converse mode is explicitly disabled, it
+does not time out
+
+without being explicitly activated converse method is fully ignored
+
+converse method returns False in case of timeout or intent_failure
+
+fallback is ignored if converse is active, they are mutually exclusive, this
+can be handled from inside node red if needed
 
 other skills can use the new bus messages to send data to node red, the node
 red entry point can be targeted if desired by specifying the peer in the

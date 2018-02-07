@@ -230,7 +230,7 @@ class NodeRedSkill(FallbackSkill):
         # dont answer self
         message.context = message.context or {}
         platform = message.context.get("platform", "mycroft")
-        if platform == "node_red":
+        if platform == "node_red" or self.conversing:
             return False
         # ask node
         self.success = False
