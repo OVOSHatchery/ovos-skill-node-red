@@ -108,7 +108,7 @@ or made into a service
 
     "node_red.converse.activate" -> makes node red converse method always trigger first, keeps skill active until deactivated
 
-    "node_red.converse.deactivate" -> stops node red converse method from triggering first, resumes fallback skill mode
+    "node_red.converse.deactivate" -> stops node red converse method from triggering, resumes fallback skill mode
 
 
 # expected external messages from mycroft to node red
@@ -130,7 +130,7 @@ or made into a service
 
     "node_red.converse.activate" -> makes node red converse method always trigger first, keeps skill active until deactivated
 
-    "node_red.converse.deactivate" -> stops node red converse method from triggering first, resumes fallback skill mode
+    "node_red.converse.deactivate" -> stops node red converse method from triggering, resumes fallback skill mode
 
 
 
