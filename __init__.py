@@ -651,8 +651,9 @@ class NodeRedFactory(WebSocketServerFactory):
             elif message.type == "node_red.query":
                 # node is asking us something
                 message.type = "recognizer_loop:utterance"
-                # change target, we do not want tts to execute
-                message.context["target"] = "node_red"
+                # we do not want tts to execute, unless explicitly requested
+                if "target" not in message.context:
+                    message.context["target"] = "node_red"
             elif message.type == "node_red.intent_failure":
                 # node red failed
                 LOG.info("node red intent failure")

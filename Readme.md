@@ -24,6 +24,7 @@ flows should open a websocket connection to communicate with mycroft
 ![picture](https://github.com/JarbasAl/fallback-node-red/blob/master/flows.jpg)
 
 
+
 # Installing node red
 
 on raspbian
@@ -95,6 +96,25 @@ or made into a service
 
     Input: make node a fallback skill
     Mycroft: node red is already a fallback skill
+
+
+# web chat in node red
+
+we can also ask mycroft questions from inside node red
+
+since [PR#1408](https://github.com/MycroftAI/mycroft-core/pull/1408), text to
+speech will not execute and you will simply get a text response, if you
+want TTS to be executed in mycroft this can be easily changed by adding "target": "audio" to the context
+
+
+a sample web chat is provided, you can extend this to execute TTS in browser, does not support multiple users
+
+
+deploy the contents of web_chat_flow.txt and then open
+
+    http://127.0.0.1:1880/ui/
+
+![picture](chat.jpg)
 
 
 # new internal mycroft-core messages
