@@ -334,12 +334,12 @@ node red can be running in other machine as long as it can access mycroft ip add
 
 # TODOS and known bugs
 
-- TODO settingsmeta.json
+- TODO update settingsmeta.json, once bool and list are supported
 - BUG self signed ssl fails
 - TODO get a PEM-encoding of the self-signed certificate and include it as a CA. Since the certificate is self-signed, it acts as its own CA and therefore can be used to verify itself.
 - TODO make ssl a default
-- TODO install node red intent
-- TODO start node red intent
+- TODO install node on first run
+- TODO start/stop node red intents
 - BUG Fix skill shutdown
 
 

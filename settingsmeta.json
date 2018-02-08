@@ -1,0 +1,62 @@
+{
+    "name": "NodeRed Skill",
+    "skillMetadata": {
+        "sections": [
+            {
+                "name": "host",
+                "fields": [
+                    {
+                        "name": "host",
+                        "type": "text",
+                        "label": "host",
+                        "value": "127.0.0.1"
+                    }
+                ]
+            },
+          {
+                "name": "port",
+                "fields": [
+                    {
+                        "name": "port",
+                        "type": "number",
+                        "label":"port",
+                        "value": "6789"
+                    }
+                ]
+            },
+            {
+                "name": "timeout",
+                "fields": [
+                    {
+                        "name": "timeout",
+                        "type": "number",
+                        "label":"timeout",
+                        "value": "15"
+                    }
+                ]
+            },
+            {
+                "name": "secret",
+                "fields": [
+                    {
+                        "name": "secret",
+                        "type": "password",
+                        "label": "secret",
+                        "value": "test_key"
+                    }
+                ]
+            },
+            {
+                "name": "priority",
+                "fields": [
+                    {
+                        "name": "priority",
+                        "type": "number",
+                        "label":"priority",
+                        "value": "50"
+                    }
+                ]
+            }
+        ]
+    }
+}
