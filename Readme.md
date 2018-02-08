@@ -229,6 +229,41 @@ supports ip blacklist / whitelist
     14:43:18.945 - SKILLS - DEBUG - {"type": "speak", "data": {"utterance": "node-red says hey"}, "context": {"source": "tcp4:127.0.0.1:33718", "ident": "test:tcp4:127.0.0.1:33718", "platform": "node_red", "destinatary": "node_fallback"}}
 
 
+# converse method inside node red logs
+
+activating converse from inside mycroft
+
+    16:30:45.916 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.start", "data": {"handler": "fallback"}, "context": null}
+    16:30:45.955 - SKILLS - DEBUG - {"type": "-7976428735325913512:converse.enable.intent", "data": {"utterance": "make node a priority skill"}, "context": null}
+    16:30:45.956 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.complete", "data": {"handler": "fallback", "fallback_handler": "PadatiousService.handle_fallback"}, "context": null}
+    16:30:45.960 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.start", "data": {"handler": "NodeRedSkill.handle_converse_enable"}, "context": null}
+    16:30:45.962 - SKILLS - DEBUG - {"type": "speak", "data": {"expect_response": false, "utterance": "you made node red a priority skill"}, "context": {}}
+    16:30:46.002 - SKILLS - DEBUG - {"type": "active_skill_request", "data": {"skill_id": -7976428735325913512}, "context": null}
+    16:30:46.003 - SKILLS - DEBUG - {"type": "mycroft.skill.handler.complete", "data": {"handler": "NodeRedSkill.handle_converse_enable"}, "context": null}
+
+asking something
+
+    16:31:49.130 - SKILLS - DEBUG - {"type": "recognizer_loop:utterance", "data": {"utterances": ["are you conversing"]}, "context": null}
+    16:31:49.134 - SKILLS - DEBUG - {"type": "skill.converse.request", "data": {"lang": "en-us", "skill_id": -7976428735325913512, "utterances": ["are you conversing"]}, "context": null}
+    16:31:49.141 - fallback-node-red__init__:onMessage:474 - INFO - Text message received: {"type": "node_red.answer", "data":{"utterance": "this is converse inside node red"}, "context":{}}
+    16:31:49.143 - fallback-node-red__init__:process_message:601 - INFO - processing message from client: tcp4:127.0.0.1:32950
+    16:31:49.147 - SKILLS - DEBUG - {"type": "speak", "data": {"utterance": "this is converse inside node red"}, "context": {"source": "tcp4:127.0.0.1:32950", "client_name": "node_red", "ident": "out:tcp4:127.0.0.1:32950", "platform": "node_red", "destinatary": "node_fallback"}}
+    16:31:49.441 - SKILLS - DEBUG - {"type": "skill.converse.response", "data": {"skill_id": -7976428735325913512, "result": true}, "context": null}
+
+turning it off
+
+    :32:22.229 - SKILLS - DEBUG - {"type": "recognizer_loop:utterance", "data": {"utterances": ["off"]}, "context": null}
+    16:32:22.234 - SKILLS - DEBUG - {"type": "skill.converse.request", "data": {"lang": "en-us", "skill_id": -7976428735325913512, "utterances": ["off"]}, "context": null}
+    16:32:22.246 - fallback-node-red__init__:onMessage:474 - INFO - Text message received: {"type": "node_red.converse.deactivate", "data":{}, "context":{}}
+    16:32:22.252 - fallback-node-red__init__:process_message:601 - INFO - processing message from client: tcp4:127.0.0.1:32950
+    16:32:22.255 - fallback-node-red__init__:process_message:636 - INFO - node red converse deactivate
+    16:32:22.265 - SKILLS - DEBUG - {"type": "node_red.converse.deactivate", "data": {}, "context": {"source": "tcp4:127.0.0.1:32950", "client_name": "node_red", "ident": "out:tcp4:127.0.0.1:32950", "platform": "node_red", "destinatary": "tcp4:127.0.0.1:32950"}}
+    16:32:22.265 - fallback-node-red__init__:onMessage:474 - INFO - Text message received: {"type": "node_red.answer", "data":{"utterance": "converse inside node is off"}, "context":{}}
+    16:32:22.267 - fallback-node-red__init__:process_message:601 - INFO - processing message from client: tcp4:127.0.0.1:32950
+    16:32:22.271 - SKILLS - DEBUG - {"type": "speak", "data": {"utterance": "converse inside node is off"}, "context": {"source": "tcp4:127.0.0.1:32950", "client_name": "node_red", "ident": "out:tcp4:127.0.0.1:32950", "platform": "node_red", "destinatary": "node_fallback"}}
+    16:32:22.540 - SKILLS - DEBUG - {"type": "skill.converse.response", "data": {"skill_id": -7976428735325913512, "result": true}, "context": null}
+
+
 # extra
 
 if converse method is activated node red will work as a priority skill, all
