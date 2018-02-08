@@ -22,7 +22,27 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, \
 from autobahn.websocket.types import ConnectionDeny
 
 from mycroft.messagebus.message import Message
-from mycroft.skills.core import FallbackSkill, dig_for_message
+from mycroft.skills.core import FallbackSkill
+try:
+    from mycroft.skills.core import dig_for_message
+except ImportError:
+    # < 0.9.14 mycroft versions
+
+    import inspect
+
+
+    def dig_for_message():
+        """
+            Dig Through the stack for message.
+        """
+        stack = inspect.stack()
+        # Limit search to 10 frames back
+        stack = stack if len(stack) < 10 else stack[:10]
+        local_vars = [frame[0].f_locals for frame in stack]
+        for l in local_vars:
+            if 'message' in l and isinstance(l['message'], Message):
+                return l['message']
+
 from mycroft.util.log import LOG
 
 __author__ = "jarbas"
@@ -61,6 +81,10 @@ class NodeRedSkill(FallbackSkill):
         self.conversing = False
         self.converse_thread = Thread(target=self.converse_keepalive)
         self.converse_thread.setDaemon(True)
+
+    def get_intro_message(self):
+        # we could return the string or do this
+        self.speak_dialog("intro")
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
