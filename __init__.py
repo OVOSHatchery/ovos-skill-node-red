@@ -22,7 +22,7 @@ from autobahn.twisted.websocket import WebSocketServerProtocol, \
 from autobahn.websocket.types import ConnectionDeny
 
 from mycroft.messagebus.message import Message
-from mycroft.skills.core import FallbackSkill
+from mycroft.skills.core import FallbackSkill, dig_for_message
 from mycroft.util.log import LOG
 
 __author__ = "jarbas"
@@ -346,13 +346,19 @@ class NodeRedSkill(FallbackSkill):
 
     def converse(self, utterances, lang="en-us"):
         if self.conversing:
-            self.emitter.emit(Message("node_red.send",
-                                            {"payload": {
-                                                "type": "node_red.converse",
-                                                "data": {"utterance":
-                                                             utterances[0]},
-                                                "context": {"source":
-                                                                self.name}}}))
+            message = dig_for_message()
+            data = {"payload": {
+                                "type": "node_red.converse",
+                                "data": {"utterance": utterances[0]},
+                                "context": {"source": self.name}
+                                }
+                    }
+            if message:
+                message = message.reply("node_red.send", data)
+            else:
+                message = Message("node_red.send", data)
+
+            self.factory.broadcast_message(message)
             self.success = False
             self.wait_for_node()
             if self.waiting_for_node:
@@ -614,19 +620,22 @@ class NodeRedFactory(WebSocketServerFactory):
             message.context["client_name"] = "node_red"
             message.context["destinatary"] = client.peer
             if message.type == "node_red.answer":
-                # node is answering us
+                # node is answering us, do not use target, we want tts to
+                # execute
                 message.type = "speak"
                 message.context["destinatary"] = "node_fallback"
             elif message.type == "node_red.query":
                 # node is asking us something
                 message.type = "recognizer_loop:utterance"
+                # change target, we do not want tts to execute
+                message.context["target"] = "node_red"
             elif message.type == "node_red.intent_failure":
                 # node red failed
-                message.data = {}
+                LOG.info("node red intent failure")
             elif message.type == "node_red.converse.deactivate":
-                pass
+                LOG.info("node red converse deactivate")
             elif message.type == "node_red.converse.activate":
-                pass
+                LOG.info("node red converse activate")
             elif self.settings["safe_mode"] and message.type not in \
                     self.settings["message_whitelist"]:
                 LOG.warning("node red sent an unexpected message type, "

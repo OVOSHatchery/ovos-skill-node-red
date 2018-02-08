@@ -81,6 +81,15 @@ or made into a service
     Input: make node a priority skill
     Mycroft: node red is already a priority skill
 
+    Input: Ask mycroft tell me a joke
+    Mycroft: Chuck Norris joke
+
+    Input: whatever
+    Mycroft: this is converse inside node red
+
+    Input: off
+    Mycroft: converse inside node is off
+
     Input: make node a fallback skill
     Mycroft: node red restored to fallback skill
 
@@ -275,6 +284,9 @@ node red can be running in other machine as long as it can access mycroft ip add
 - TODO get a PEM-encoding of the self-signed certificate and include it as a CA. Since the certificate is self-signed, it acts as its own CA and therefore can be used to verify itself.
 - TODO make ssl a default
 - TODO install node red intent
+- TODO start node red intent
+- BUG Fix skill shutdown
+
 
 # liked this?
 
