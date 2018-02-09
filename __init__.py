@@ -207,6 +207,7 @@ class NodeRedSkill(FallbackSkill):
         destinatary = message.context.get("destinatary", "")
         client_name = message.context.get("client_name", "")
         # capture answers from node
+        self.factory.query = False
         if not self.waiting_for_mycroft and not self.waiting_for_node:
             return
 
@@ -253,8 +254,8 @@ class NodeRedSkill(FallbackSkill):
     def handle_fallback(self, message):
         # dont answer self
         message.context = message.context or {}
-        platform = message.context.get("platform", "mycroft")
-        if platform == "node_red" or self.conversing:
+        #source = message.context.get("source", "mycroft")
+        if self.conversing:
             return False
         # ask node
         self.success = False
@@ -522,6 +523,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
 # websocket connection factory
 class NodeRedFactory(WebSocketServerFactory):
     clients = {}
+    query = False
 
     @classmethod
     def get_peer_by_name(cls, name):
@@ -648,8 +650,15 @@ class NodeRedFactory(WebSocketServerFactory):
                 # execute
                 message.type = "speak"
                 message.context["destinatary"] = "node_fallback"
+                # node is answering its own question in a fallback
+                if self.query:
+                    message.context["target"] = "node_red"
+                    self.query = False
+                    # forward back to node
+                    self.broadcast_message(message)
             elif message.type == "node_red.query":
                 # node is asking us something
+                self.query = True
                 message.type = "recognizer_loop:utterance"
                 # we do not want tts to execute, unless explicitly requested
                 if "target" not in message.context:
