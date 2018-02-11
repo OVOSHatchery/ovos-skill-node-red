@@ -46,28 +46,7 @@
                     }
                 ]
             },
-            {
-                "name": "safe_mode",
-                "fields": [
-                    {
-                        "name": "safe_mode",
-                        "type": "checkbox",
-                        "label": "safe_mode",
-                        "value": "false"
-                    }
-                ]
-            },
-            {
-                "name": "ssl",
-                "fields": [
-                    {
-                        "name": "ssl",
-                        "type": "checkbox",
-                        "label": "ssl",
-                        "value": "false"
-                    }
-                ]
-            },
+
             {
                 "name": "priority",
                 "fields": [
