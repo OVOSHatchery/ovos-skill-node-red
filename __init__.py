@@ -137,11 +137,11 @@ class NodeRedSkill(FallbackSkill):
                 self.settings["key"],
                 self.settings["cert"])
 
-            reactor.listenSSL(self.settings["port"],
+            reactor.listenSSL(int(self.settings["port"]),
                               self.factory,
                               contextFactory)
         else:
-            reactor.listenTCP(self.settings["port"], self.factory)
+            reactor.listenTCP(int(self.settings["port"]), self.factory)
         reactor.run(installSignalHandlers=0)
 
     # mycroft handlers

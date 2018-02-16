@@ -35,7 +35,7 @@ if [[ "${mycroft_platform}" == "null" ]] ; then
 fi
 
 if [[ "${mycroft_platform}" == "null" ]] ; then
-    sudo apt-get install libssl-dev
+    sudo apt-get install libssl-dev libffi-dev
 else
-    apt-get install libssl-dev
+    apt-get install libssl-dev libffi-dev
 fi
