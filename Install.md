@@ -2,7 +2,7 @@ Install the Node-Red Fallback Skill
 
 For the Mark 1
 sudo apt-get install libssl-dev libffi-dev
-sudo msm install https://github.com/JarbasAl/fallback-node-red
+sudo msm install https://github.com/RdeLange/fallback-node-red.git
 sudo service mycroft-skills restart
 
 MARK1 VIRTUAL ENV:
