@@ -50,7 +50,7 @@ __author__ = "jarbas"
 
 class NodeRedSkill(FallbackSkill):
     def __init__(self):
-        super(NodeRedSkill, self).__init__()
+        super(NodeRedSkill, self).__init__(name='NodeRedSkill')
         if "host" not in self.settings:
             self.settings["host"] = "127.0.0.1"
         if "port" not in self.settings:
@@ -60,7 +60,7 @@ class NodeRedSkill(FallbackSkill):
         if "key" not in self.settings:
             self.settings["key"] = self._dir + '/certs/red.key'
         if "timeout" not in self.settings:
-            self.settings["timeout"] = 15
+            self.settings["timeout"] = 3
         if "ssl" not in self.settings:
             self.settings["ssl"] = False
         if "secret" not in self.settings:
@@ -81,6 +81,7 @@ class NodeRedSkill(FallbackSkill):
         self.conversing = False
         self.converse_thread = Thread(target=self.converse_keepalive)
         self.converse_thread.setDaemon(True)
+        self.settings["timeout"] = 0.1
 
     def get_intro_message(self):
         # we could return the string or do this
@@ -88,9 +89,9 @@ class NodeRedSkill(FallbackSkill):
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
-        self.address = unicode(prot) + u"://" + \
-                       unicode(self.settings["host"]) + u":" + \
-                       unicode(self.settings["port"]) + u"/"
+        self.address = str(prot) + u"://" + \
+                       str(self.settings["host"]) + u":" + \
+                       str(self.settings["port"]) + u"/"
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
         self.factory.settings = self.settings
@@ -112,7 +113,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
 
-        self.register_fallback(self.handle_fallback, self.settings["priority"])
+        self.register_fallback(self.handle_fallback, int(self.settings["priority"]))
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
         self.register_intent_file("converse.enable.intent",
                                   self.handle_converse_enable)
@@ -176,7 +177,10 @@ class NodeRedSkill(FallbackSkill):
                                                     "payload": msg}))
             elif peer is None:
                 # send message to client
+                LOG.info("DEBUGRDL1")
                 self.factory.broadcast_message(msg)
+                
+
                 self.emitter.emit(message.reply("node_red.send.broadcast",
                                                 {"peer": peer,
                                                  "payload": msg}))
@@ -247,8 +251,8 @@ class NodeRedSkill(FallbackSkill):
     def wait_for_node(self):
         start = time.time()
         self.waiting_for_node = True
-        while self.waiting_for_node and time.time() - start < self.settings[
-            "timeout"]:
+        while self.waiting_for_node and time.time() - start < float(self.settings[
+            "timeout"]):
             time.sleep(0.3)
 
     def handle_fallback(self, message):
@@ -456,9 +460,11 @@ class NodeRedProtocol(WebSocketServerProtocol):
             api = ""
         else:
             usernamePasswordEncoded = usernamePasswordEncoded.split()
-            usernamePasswordDecoded = base64.b64decode(
-                usernamePasswordEncoded[1])
+            usernamePasswordDecoded = str(base64.b64decode(usernamePasswordEncoded[1]),'utf-8')
+            LOG.info(str(usernamePasswordDecoded))
+            
             self.name, api = usernamePasswordDecoded.split(":")
+            LOG(self.name+"====="+api)
         context = {"source": self.peer}
         self.platform = "node_red"
         # send message to internal mycroft bus
@@ -496,7 +502,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         else:
             LOG.info(
                 "Text message received: {0}".format(unicodedata.normalize(
-                    'NFKD', unicode(payload)).encode('ascii', 'ignore')))
+                    'NFKD', str(payload)).encode('ascii', 'ignore')))
 
         self.factory.process_message(self, payload, isBinary)
 
@@ -537,8 +543,9 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def send_message(cls, peer, data):
         if isinstance(data, Message):
-            data = Message.serialize(data)
-        payload = repr(json.dumps(data))
+            data = Message.serialize(data).encode()
+        payload = repr(json.dumps(data)).encode()
+        LOG.info(peer)
         if peer in cls.clients:
             c = cls.clients[peer]["object"]
             reactor.callFromThread(c.sendMessage, payload)
@@ -548,9 +555,14 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def broadcast_message(cls, data):
         if isinstance(data, Message):
-            payload = Message.serialize(data)
+            LOG.info("DEBUGRDL - first")
+            payload = Message.serialize(data).encode()
         else:
-            payload = repr(json.dumps(data))
+            LOG.info("DEBUGRDL - second - A")
+
+            payload = repr(json.dumps(data)).encode()
+            LOG.info("DEBUGRDL - second - B")
+
         for c in set(cls.clients):
             c = cls.clients[c]["object"]
             reactor.callFromThread(c.sendMessage, payload)
@@ -633,7 +645,8 @@ class NodeRedFactory(WebSocketServerFactory):
             # TODO receive files ?
             pass
         else:
-            message = Message.deserialize(payload)
+            message = Message.deserialize(payload.decode('utf8'))
+            #message = Message.deserialize(json.loads(payload.decode('utf8')))
             # add context for this message
             message.context["source"] = client.peer
             message.context["platform"] = "node_red"

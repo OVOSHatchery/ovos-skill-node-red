@@ -1,0 +1,1 @@
+{"not_owner": true, "ssl": false, "cert": "/opt/mycroft/skills/fallback-node-red/certs/red.crt", "ip_blacklist": true, "message_whitelist": [], "secret": "test_key", "port": "6789", "ip_list": [], "safe_mode": false, "__mycroft_skill_firstrun": false, "host": "127.0.0.1", "priority": "50", "key": "/opt/mycroft/skills/fallback-node-red/certs/red.key", "timeout": "15"}
