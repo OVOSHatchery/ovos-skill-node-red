@@ -3,6 +3,7 @@ Install the Node-Red Fallback Skill
 For the Mark 1
 sudo apt-get install libssl-dev libffi-dev
 sudo msm install https://github.com/RdeLange/fallback-node-red.git
+sudo ufw allow 6789/tcp (this will open the port in the firewall)
 sudo service mycroft-skills restart
 
 MARK1 VIRTUAL ENV:
