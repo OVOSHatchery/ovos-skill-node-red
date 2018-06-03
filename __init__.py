@@ -60,7 +60,7 @@ class NodeRedSkill(FallbackSkill):
         if "key" not in self.settings:
             self.settings["key"] = self._dir + '/certs/red.key'
         if "timeout" not in self.settings:
-            self.settings["timeout"] = 3
+            self.settings["timeout"] = 15
         if "ssl" not in self.settings:
             self.settings["ssl"] = False
         if "secret" not in self.settings:
@@ -81,7 +81,7 @@ class NodeRedSkill(FallbackSkill):
         self.conversing = False
         self.converse_thread = Thread(target=self.converse_keepalive)
         self.converse_thread.setDaemon(True)
-        self.settings["timeout"] = 0.1
+        #self.settings["timeout"] = 0.1
 
     def get_intro_message(self):
         # we could return the string or do this
