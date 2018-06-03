@@ -177,7 +177,6 @@ class NodeRedSkill(FallbackSkill):
                                                     "payload": msg}))
             elif peer is None:
                 # send message to client
-                LOG.info("DEBUGRDL1")
                 self.factory.broadcast_message(msg)
                 
 
@@ -461,10 +460,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         else:
             usernamePasswordEncoded = usernamePasswordEncoded.split()
             usernamePasswordDecoded = str(base64.b64decode(usernamePasswordEncoded[1]),'utf-8')
-            LOG.info(str(usernamePasswordDecoded))
-            
             self.name, api = usernamePasswordDecoded.split(":")
-            LOG(self.name+"====="+api)
         context = {"source": self.peer}
         self.platform = "node_red"
         # send message to internal mycroft bus
@@ -555,13 +551,9 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def broadcast_message(cls, data):
         if isinstance(data, Message):
-            LOG.info("DEBUGRDL - first")
             payload = Message.serialize(data).encode()
         else:
-            LOG.info("DEBUGRDL - second - A")
-
             payload = repr(json.dumps(data)).encode()
-            LOG.info("DEBUGRDL - second - B")
 
         for c in set(cls.clients):
             c = cls.clients[c]["object"]
