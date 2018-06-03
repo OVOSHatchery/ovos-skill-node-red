@@ -13,10 +13,10 @@ deactivate
 
 For Picroft
 sudo apt-get install libssl-dev libffi-dev
-sudo msm install https://github.com/JarbasAl/fallback-node-red
+sudo msm install https://github.com/RdeLange/fallback-node-red.git
 sudo service mycroft-skills restart
 
 For desktop Mycroft dev installations
 cd /home/username/mycroft-core/msm
-./msm install https://github.com/JarbasAl/fallback-node-red
+./msm install https://github.com/RdeLange/fallback-node-red.git
 ./msm update
