@@ -1,6 +1,6 @@
 Mycroft decides what skill to trigger like this
 
-pic
+https://raw.githubusercontent.com/JarbasAI/JarbasAI.github.io/master/images/mycroft.png
 
 Node red skill acts as a bridge between a node red instance and mycroft, it works like a fallback skill
 
