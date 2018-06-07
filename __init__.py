@@ -532,6 +532,7 @@ class NodeRedFactory(WebSocketServerFactory):
         names = []
         for peer in cls.clients:
             peer_name = cls.clients[peer]["name"]
+            LOG.info("RDL PEER LOOP LOG: "+peer_name)
             if name == peer_name:
                 names.append(peer)
         return names
@@ -571,7 +572,7 @@ class NodeRedFactory(WebSocketServerFactory):
     def shutdown(cls):
         while len(cls.clients):
             try:
-                peer = cls.clients.keys()[0]
+                peer = list(cls.clients.keys())[0]
                 client = cls.clients[peer]["object"]
                 client.sendClose()
                 cls.clients.pop(peer)
@@ -615,7 +616,7 @@ class NodeRedFactory(WebSocketServerFactory):
        Remove client from list of managed connections.
        """
         LOG.info("deregistering node_red: " + str(client.peer))
-        if client.peer in self.clients.keys():
+        if client.peer in list(self.clients.keys()):
             context = {"source": client.peer}
             self.emitter.emit(
                 Message("node_red.disconnect",
