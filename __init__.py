@@ -1,3 +1,4 @@
+from builtins import str
 # NO LICENSE 2018
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -88,9 +89,9 @@ class NodeRedSkill(FallbackSkill):
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
-        self.address = unicode(prot) + u"://" + \
-                       unicode(self.settings["host"]) + u":" + \
-                       unicode(self.settings["port"]) + u"/"
+        self.address = str(prot) + u"://" + \
+                       str(self.settings["host"]) + u":" + \
+                       str(self.settings["port"]) + u"/"
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
         self.factory.settings = self.settings
@@ -496,7 +497,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         else:
             LOG.info(
                 "Text message received: {0}".format(unicodedata.normalize(
-                    'NFKD', unicode(payload)).encode('ascii', 'ignore')))
+                    'NFKD', str(payload)).encode('ascii', 'ignore')))
 
         self.factory.process_message(self, payload, isBinary)
 
@@ -567,7 +568,7 @@ class NodeRedFactory(WebSocketServerFactory):
     def shutdown(cls):
         while len(cls.clients):
             try:
-                peer = cls.clients.keys()[0]
+                peer = list(cls.clients.keys())[0]
                 client = cls.clients[peer]["object"]
                 client.sendClose()
                 cls.clients.pop(peer)
@@ -611,7 +612,7 @@ class NodeRedFactory(WebSocketServerFactory):
        Remove client from list of managed connections.
        """
         LOG.info("deregistering node_red: " + str(client.peer))
-        if client.peer in self.clients.keys():
+        if client.peer in list(self.clients.keys()):
             context = {"source": client.peer}
             self.emitter.emit(
                 Message("node_red.disconnect",
