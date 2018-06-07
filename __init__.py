@@ -113,7 +113,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
 
-        self.register_fallback(self.handle_fallback, self.settings["priority"])
+        self.register_fallback(self.handle_fallback, int(self.settings["priority"]))
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
         self.register_intent_file("converse.enable.intent",
                                   self.handle_converse_enable)
