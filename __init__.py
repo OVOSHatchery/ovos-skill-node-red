@@ -1,4 +1,3 @@
-from builtins import str
 # NO LICENSE 2018
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -89,8 +88,8 @@ class NodeRedSkill(FallbackSkill):
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
-        self.address = str(prot) + u"://" + \
-                       str(self.settings["host"]) + u":" + \
+        self.address = prot + u"://" + \
+                       self.settings["host"] + u":" + \
                        str(self.settings["port"]) + u"/"
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
@@ -113,7 +112,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
 
-        self.register_fallback(self.handle_fallback, int(self.settings["priority"]))
+        self.register_fallback(self.handle_fallback, self.settings["priority"])
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
         self.register_intent_file("converse.enable.intent",
                                   self.handle_converse_enable)
@@ -497,7 +496,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         else:
             LOG.info(
                 "Text message received: {0}".format(unicodedata.normalize(
-                    'NFKD', str(payload)).encode('ascii', 'ignore')))
+                    'NFKD', payload).encode('ascii', 'ignore')))
 
         self.factory.process_message(self, payload, isBinary)
 
@@ -568,7 +567,7 @@ class NodeRedFactory(WebSocketServerFactory):
     def shutdown(cls):
         while len(cls.clients):
             try:
-                peer = list(cls.clients.keys())[0]
+                peer = cls.clients.keys()[0]
                 client = cls.clients[peer]["object"]
                 client.sendClose()
                 cls.clients.pop(peer)
@@ -612,7 +611,7 @@ class NodeRedFactory(WebSocketServerFactory):
        Remove client from list of managed connections.
        """
         LOG.info("deregistering node_red: " + str(client.peer))
-        if client.peer in list(self.clients.keys()):
+        if client.peer in self.clients.keys():
             context = {"source": client.peer}
             self.emitter.emit(
                 Message("node_red.disconnect",
