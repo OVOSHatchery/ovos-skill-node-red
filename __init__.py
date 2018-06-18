@@ -50,7 +50,7 @@ __author__ = "jarbas"
 
 class NodeRedSkill(FallbackSkill):
     def __init__(self):
-        super(NodeRedSkill, self).__init__()
+        super(NodeRedSkill, self).__init__(name='NodeRedSkill')
         if "host" not in self.settings:
             self.settings["host"] = "127.0.0.1"
         if "port" not in self.settings:
@@ -88,8 +88,8 @@ class NodeRedSkill(FallbackSkill):
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
-        self.address = prot + u"://" + \
-                       self.settings["host"] + u":" + \
+        self.address = str(prot) + u"://" + \
+                       str(self.settings["host"]) + u":" + \
                        str(self.settings["port"]) + u"/"
         self.factory = NodeRedFactory(self.address)
         self.factory.protocol = NodeRedProtocol
@@ -112,7 +112,7 @@ class NodeRedSkill(FallbackSkill):
         self.emitter.on("complete_intent_failure", self.handle_node_question)
         self.emitter.on("speak", self.handle_node_question)
 
-        self.register_fallback(self.handle_fallback, self.settings["priority"])
+        self.register_fallback(self.handle_fallback, int(self.settings["priority"]))
         self.register_intent_file("pingnode.intent", self.handle_ping_node)
         self.register_intent_file("converse.enable.intent",
                                   self.handle_converse_enable)
@@ -247,8 +247,8 @@ class NodeRedSkill(FallbackSkill):
     def wait_for_node(self):
         start = time.time()
         self.waiting_for_node = True
-        while self.waiting_for_node and time.time() - start < self.settings[
-            "timeout"]:
+        while self.waiting_for_node and time.time() - start < float(self.settings[
+            "timeout"]):
             time.sleep(0.3)
 
     def handle_fallback(self, message):
@@ -456,8 +456,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
             api = ""
         else:
             usernamePasswordEncoded = usernamePasswordEncoded.split()
-            usernamePasswordDecoded = base64.b64decode(
-                usernamePasswordEncoded[1])
+            usernamePasswordDecoded = str(base64.b64decode(usernamePasswordEncoded[1]),'utf-8')
             self.name, api = usernamePasswordDecoded.split(":")
         context = {"source": self.peer}
         self.platform = "node_red"
@@ -496,7 +495,7 @@ class NodeRedProtocol(WebSocketServerProtocol):
         else:
             LOG.info(
                 "Text message received: {0}".format(unicodedata.normalize(
-                    'NFKD', payload).encode('ascii', 'ignore')))
+                    'NFKD', str(payload)).encode('ascii', 'ignore')))
 
         self.factory.process_message(self, payload, isBinary)
 
@@ -537,8 +536,9 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def send_message(cls, peer, data):
         if isinstance(data, Message):
-            data = Message.serialize(data)
-        payload = repr(json.dumps(data))
+            data = Message.serialize(data).encode()
+        payload = repr(json.dumps(data)).encode()
+        LOG.info(peer)
         if peer in cls.clients:
             c = cls.clients[peer]["object"]
             reactor.callFromThread(c.sendMessage, payload)
@@ -548,9 +548,10 @@ class NodeRedFactory(WebSocketServerFactory):
     @classmethod
     def broadcast_message(cls, data):
         if isinstance(data, Message):
-            payload = Message.serialize(data)
+            payload = Message.serialize(data).encode()
         else:
-            payload = repr(json.dumps(data))
+            payload = repr(json.dumps(data)).encode()
+
         for c in set(cls.clients):
             c = cls.clients[c]["object"]
             reactor.callFromThread(c.sendMessage, payload)
@@ -567,7 +568,7 @@ class NodeRedFactory(WebSocketServerFactory):
     def shutdown(cls):
         while len(cls.clients):
             try:
-                peer = cls.clients.keys()[0]
+                peer = list(cls.clients.keys())[0]
                 client = cls.clients[peer]["object"]
                 client.sendClose()
                 cls.clients.pop(peer)
@@ -611,7 +612,7 @@ class NodeRedFactory(WebSocketServerFactory):
        Remove client from list of managed connections.
        """
         LOG.info("deregistering node_red: " + str(client.peer))
-        if client.peer in self.clients.keys():
+        if client.peer in list(self.clients.keys()):
             context = {"source": client.peer}
             self.emitter.emit(
                 Message("node_red.disconnect",
@@ -633,7 +634,7 @@ class NodeRedFactory(WebSocketServerFactory):
             # TODO receive files ?
             pass
         else:
-            message = Message.deserialize(payload)
+            message = Message.deserialize(payload.decode('utf8'))
             # add context for this message
             message.context["source"] = client.peer
             message.context["platform"] = "node_red"
