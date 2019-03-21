@@ -88,6 +88,10 @@ class NodeRedSkill(FallbackSkill):
 
     def initialize(self):
         prot = "wss" if self.settings["ssl"] else "ws"
+        
+        # TODO replace all self.emitter with self.bus
+        self.emitter = self.bus  # 19.02 compatibility workaround
+        
         self.address = str(prot) + u"://" + \
                        str(self.settings["host"]) + u":" + \
                        str(self.settings["port"]) + u"/"
