@@ -221,7 +221,7 @@ class NodeRedSkill(FallbackSkill):
             return
 
         # forward speak messages to node if that is the target
-        if message.type == "complete_intent_failure" and self.waiting_for_mycroft:
+        if message.msg_type == "complete_intent_failure" and self.waiting_for_mycroft:
             self.waiting_for_mycroft = False
 
         peers = self.factory.get_peer_by_name("answer")
@@ -230,7 +230,7 @@ class NodeRedSkill(FallbackSkill):
             self.emitter.emit(message.reply("node_red.send.success",
                                             {"peer": "broadcast",
                                              "payload": {
-                                                 "type": message.type,
+                                                 "type": message.msg_type,
                                                  "data": message.data,
                                                  "context": message.context}}))
         else:
@@ -239,7 +239,7 @@ class NodeRedSkill(FallbackSkill):
                 self.emitter.emit(message.reply("node_red.send.success",
                                                 {"peer": peer,
                                                  "payload": {
-                                                     "type": message.type,
+                                                     "type": message.msg_type,
                                                      "data": message.data,
                                                      "context": message.context}}))
 
@@ -582,10 +582,10 @@ class NodeRedFactory(WebSocketServerFactory):
     def bind(self, emitter):
         self.emitter = emitter
 
-    def emitter_send(self, type, data=None, context=None):
+    def emitter_send(self, msg_type, data=None, context=None):
         data = data or {}
         context = context or {}
-        self.emitter.emit(Message(type, data, context))
+        self.emitter.emit(Message(msg_type, data, context))
 
     # websocket handlers
     def register_client(self, client, platform=None):
@@ -650,10 +650,10 @@ class NodeRedFactory(WebSocketServerFactory):
             # we can accept any kind of message for other purposes
             message.context["client_name"] = "node_red"
             message.context["destinatary"] = client.peer
-            if message.type == "node_red.answer":
+            if message.msg_type == "node_red.answer":
                 # node is answering us, do not use target, we want tts to
                 # execute
-                message.type = "speak"
+                message.msg_type = "speak"
                 message.context["destinatary"] = "node_fallback"
                 # node is answering its own question in a fallback
                 if self.query:
@@ -661,24 +661,24 @@ class NodeRedFactory(WebSocketServerFactory):
                     self.query = False
                     # forward back to node
                     self.broadcast_message(message)
-            elif message.type == "node_red.query":
+            elif message.msg_type == "node_red.query":
                 # node is asking us something
                 self.query = True
-                message.type = "recognizer_loop:utterance"
+                message.msg_type = "recognizer_loop:utterance"
                 # we do not want tts to execute, unless explicitly requested
                 if "target" not in message.context:
                     message.context["target"] = "node_red"
-            elif message.type == "node_red.intent_failure":
+            elif message.msg_type == "node_red.intent_failure":
                 # node red failed
                 LOG.info("node red intent failure")
-            elif message.type == "node_red.converse.deactivate":
+            elif message.msg_type == "node_red.converse.deactivate":
                 LOG.info("node red converse deactivate")
-            elif message.type == "node_red.converse.activate":
+            elif message.msg_type == "node_red.converse.activate":
                 LOG.info("node red converse activate")
-            elif self.settings["safe_mode"] and message.type not in \
+            elif self.settings["safe_mode"] and message.msg_type not in \
                     self.settings["message_whitelist"]:
                 LOG.warning("node red sent an unexpected message type, "
-                            "it was suppressed: " + message.type)
+                            "it was suppressed: " + message.msg_type)
                 return
             # send client message to internal mycroft bus
             self.emitter.emit(message)
