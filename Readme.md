@@ -26,6 +26,10 @@ flows should open a websocket connection to communicate with mycroft
 
 # Installing node red
 
+you might  need to install
+
+    apt-get install libssl-dev libffi-dev
+    
 on raspbian
 
     bash <(curl -sL https://raw.githubusercontent.com/node-red/raspbian-deb-package/master/resources/update-nodejs-and-nodered)
