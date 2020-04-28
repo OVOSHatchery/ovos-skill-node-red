@@ -1,4 +1,1 @@
-autobahn
-twisted
-pyopenssl
-service_identity
+jarbas_hive_mind_red
