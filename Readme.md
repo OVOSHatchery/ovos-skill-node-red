@@ -41,14 +41,14 @@ or made into a service
 # Importing flows...
 
 
-Copy the JSON text from [sample_flow.txt](https://github.com/JarbasAl/fallback-node-red/blob/master/sample_flow.txt)
-Go to http://noderedip:1880
-In the upper righthand corner menu, choose... Import > Clipboard
-This will open the "Import nodes window"
-Paste the contents from the sample_flow.txt
-Click on Import and the flow should appear
-Next click on Deploy
-After you deploy, the websocket nodes should say 'connected' if the skill was installed properly
+- Copy the JSON text from [sample_flow.txt](https://github.com/JarbasAl/fallback-node-red/blob/master/sample_flow.txt)
+- Go to http://noderedip:1880
+- In the upper righthand corner menu, choose... Import > Clipboard
+- This will open the "Import nodes window"
+- Paste the contents from the sample_flow.txt
+- Click on Import and the flow should appear
+- Next click on Deploy
+- After you deploy, the websocket nodes should say 'connected' if the skill was installed properly
 
 
 
