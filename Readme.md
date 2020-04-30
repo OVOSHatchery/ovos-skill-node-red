@@ -1,4 +1,4 @@
-# node red fallback skill
+# node red mycroft skill
 
 [Node Red](https://nodered.org/) - Mycroft interface
 
