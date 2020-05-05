@@ -1,6 +1,6 @@
 from mycroft.messagebus.message import Message, dig_for_message
-from mycroft.skills.core import FallbackSkill, intent_file_handler
-
+from mycroft.skills.core import FallbackSkill, intent_file_handler, intent_handler
+from adapt.intent import IntentBuilder
 from jarbas_hive_mind_red import get_listener
 from jarbas_hive_mind.settings import CERTS_PATH
 from jarbas_hive_mind.database import ClientDatabase
@@ -17,14 +17,8 @@ class NodeRedSkill(FallbackSkill):
             self.settings["host"] = "127.0.0.1"
         if "port" not in self.settings:
             self.settings["port"] = 6789
-        if "cert" not in self.settings:
-            self.settings["cert"] = CERTS_PATH + '/red.crt'
-        if "key" not in self.settings:
-            self.settings["key"] = CERTS_PATH + '/red.key'
         if "timeout" not in self.settings:
             self.settings["timeout"] = 15
-        if "ssl" not in self.settings:
-            self.settings["ssl"] = False
         if "secret" not in self.settings:
             self.settings["secret"] = "unsafe"
         if "priority" not in self.settings:
@@ -39,11 +33,20 @@ class NodeRedSkill(FallbackSkill):
             self.settings["safe_mode"] = False
         if "message_whitelist" not in self.settings:
             self.settings["message_whitelist"] = []
+        if "cert" not in self.settings:
+            self.settings["cert"] = CERTS_PATH + '/red.crt'
+        if "key" not in self.settings:
+            self.settings["key"] = CERTS_PATH + '/red.key'
+        if "ssl" not in self.settings:
+            self.settings["ssl"] = False
             
         self.waiting_for_node = False
         self.conversing = False
+        self.old_key = self.settings["secret"]
+        self._error = None
 
     def initialize(self):
+        self.settings_change_callback = self.on_web_settings_change
         self.register_fallback(self.handle_fallback,
                                int(self.settings["priority"]))
 
@@ -53,8 +56,42 @@ class NodeRedSkill(FallbackSkill):
                        self.handle_converse_enable)
         self.add_event("node_red.converse.deactivate",
                        self.handle_converse_disable)
+        self.add_event("hive.client.connection.error",
+                       self.handle_wrong_key)
         self.converse_thread = create_daemon(self.converse_keepalive)
         self.node_setup()
+
+    def on_web_settings_change(self):
+        self.change_password()
+
+    def change_password(self, force=False):
+
+        with ClientDatabase() as db:
+            mail = "nodered@fakemail.red"
+            name = "nodered"
+            key = self.settings["secret"]
+            if not force:
+                if self.old_key != key:
+                    db.change_key(self.old_key, key)
+                    self.old_key = key
+                    self.speak_dialog("change_key", wait=True)
+                    self.speak_dialog("please_reboot")
+                    self.set_context("KEY_CHANGED")
+            else:
+                db.add_client(name, mail, key)
+
+    @intent_handler(IntentBuilder("WhyRebootIntent")
+                         .require("WhyKeyword").require("KEY_CHANGED"))
+    def handle_why_reboot(self, message):
+        self.speak_dialog("why", wait=True)
+
+    def handle_wrong_key(self, message):
+
+        error = message.data.get("error")
+        if self._error is None or error != self._error:
+            self.speak_dialog("bad_key")
+            self.speak(error)
+        self._error = error
 
     def node_setup(self):
         config = {
@@ -64,13 +101,7 @@ class NodeRedSkill(FallbackSkill):
                 {"use_ssl": self.settings["ssl"]}
 
         }
-
-        with ClientDatabase() as db:
-            mail = "nodered@fakemail.red"
-            name = "nodered"
-            key = self.settings["secret"]
-            db.add_client(name, mail, key)
-
+        self.change_password(force=True)
         self.node = get_listener(bus=self.bus)
         self.node.load_config(config)
         self.node_thread = create_daemon(self.node.listen)

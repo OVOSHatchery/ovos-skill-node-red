@@ -1,0 +1,4 @@
+This will force Node Red to disconnect and the HiveMind to reload
+You need to do it for security reasons
+Changes are only applied if you reboot
+In order to apply changes a reboot is needed

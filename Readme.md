@@ -41,7 +41,7 @@ or made into a service
 # Importing flows...
 
 
-- Copy the JSON text from [sample_flow.txt](https://github.com/JarbasAl/fallback-node-red/blob/master/sample_flow.txt)
+- Copy the JSON text from [sample_flow.txt](https://github.com/JarbasSkills/mycroft-node-red/blob/master/sample_flow.txt)
 - Go to http://noderedip:1880
 - In the upper righthand corner menu, choose... Import > Clipboard
 - This will open the "Import nodes window"
@@ -58,7 +58,7 @@ we can also ask mycroft questions from inside node red
 
 a sample web chat is provided, you can extend this to execute TTS in browser
 
-deploy the contents of [web_chat_flow.txt](https://github.com/JarbasAl/fallback-node-red/blob/master/web_chat_flow.txt)
+deploy the contents of [web_chat_flow.txt](https://github.com/JarbasSkills/mycroft-node-red/blob/master/web_chat_flow.txt)
 
 web chat available at
 

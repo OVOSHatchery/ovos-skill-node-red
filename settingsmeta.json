@@ -3,28 +3,6 @@
     "skillMetadata": {
         "sections": [
             {
-                "name": "host",
-                "fields": [
-                    {
-                        "name": "host",
-                        "type": "text",
-                        "label": "host",
-                        "value": "127.0.0.1"
-                    }
-                ]
-            },
-          {
-                "name": "port",
-                "fields": [
-                    {
-                        "name": "port",
-                        "type": "number",
-                        "label":"port",
-                        "value": "6789"
-                    }
-                ]
-            },
-            {
                 "name": "timeout",
                 "fields": [
                     {
