@@ -9,7 +9,7 @@ beginners and non technical users can now leverage visual programming and easily
     + [Firewall](#firewall)
     + [Launch Node red](#launch-node-red)
   * [Import base flows](#import-base-flows)
-  * [Configure keys](#configure-keys)
+  * [Configure Websocket](#configure-websocket)
   * [Build Intents](#build-intents)
 - [Extra functionality](#extra-functionality)
   * [Webui](#webui)
@@ -74,7 +74,7 @@ verify that node-red is running at http://noderedip:1880
 - After you deploy, the websocket nodes should say 'connected' if the skill was properly configured
 
 
-## Configure keys
+## Configure Websocket
 
 NodeRed will open a websocket connection to communicate with mycroft
 
@@ -82,7 +82,7 @@ NodeRed will open a websocket connection to communicate with mycroft
 
 username can be anything, secret is set in web ui of the skill
 
-You need to edit mycroft-in and mycroft-out websocket nodes with the correct secret
+You need to edit mycroft-in and mycroft-out websocket nodes with the correct secret and mycroft's ip address
 
 ![](bus.png)
 
