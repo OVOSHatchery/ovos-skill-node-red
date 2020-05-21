@@ -19,6 +19,8 @@ This will open a websocket connection to communicate with mycroft
 
 username can be anything, secret is set in web ui of the skill
 
+You need to edit mycroft-in and mycroft-out nodes with the correct secret
+
 ![](bus.png)
 
 ## Intents
