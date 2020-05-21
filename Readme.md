@@ -4,7 +4,6 @@
 
 beginners and non technical users can now leverage visual programming and easily extend mycroft functionality
 
-- [NodeRed mycroft skill](#nodered-mycroft-skill)
 - [Additional Setup](#additional-setup)
   * [Installing node red](#installing-node-red)
     + [Firewall](#firewall)
