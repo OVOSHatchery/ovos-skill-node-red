@@ -22,13 +22,14 @@ After installing the node red skill you need to deploy some flows in node red
 
 ## Installing node red
 
+    
+read the Node Red [Getting Started Guide](https://nodered.org/docs/getting-started/)
+
 you might  need to install
 
 ```bash
 apt-get install libssl-dev libffi-dev
 ```
-    
-read the Node Red [Getting Started Guide](https://nodered.org/docs/getting-started/)
 
 ### Firewall
 
