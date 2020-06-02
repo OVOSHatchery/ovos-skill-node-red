@@ -1,5 +1,7 @@
 # NodeRed mycroft skill
 
+![](./logo.png)
+
 [Node Red](https://nodered.org/) - Mycroft interface
 
 beginners and non technical users can now leverage visual programming and easily extend mycroft functionality

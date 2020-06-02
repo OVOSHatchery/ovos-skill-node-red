@@ -1,0 +1,13 @@
+{
+    "name": "NodeRed Skill",
+    "skillname": "nodered-skill",
+    "authorname": "jarbasai",
+    "foldername": "",
+    "url": "https://github.com/JarbasSkills/mycroft-node-red",
+    "branch": "master",
+    "desktopFile": false,
+    "warning": "",
+    "examples": [
+        "ping node red"
+    ]
+}
