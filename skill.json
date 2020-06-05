@@ -1,12 +1,20 @@
-{
+
     "name": "NodeRed Skill",
-    "skillname": "nodered-skill",
-    "authorname": "jarbasai",
+    "skillname": "mycroft-node-red",
+    "authorname": "jarbasskills",
     "foldername": "",
     "url": "https://github.com/JarbasSkills/mycroft-node-red",
     "branch": "master",
     "desktopFile": false,
     "warning": "",
+    "systemDeps": false,
+    "platforms": [
+        "arm",
+        "arm64",
+        "i386",
+        "x86_64",
+        "ia64"
+    ],
     "examples": [
         "ping node red"
     ]
