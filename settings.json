@@ -1,1 +1,0 @@
-{"host": "127.0.0.1", "port": 6789, "cert": "/home/user/mycroft_data/skills/fallback-node-red/certs/red.crt", "key": "/home/user/mycroft_data/skills/fallback-node-red/certs/red.key", "timeout": 15, "ssl": false, "secret": "JARBAS", "ip_list": [], "ip_blacklist": true, "safe_mode": false, "message_whitelist": [], "priority": 20, "__mycroft_skill_firstrun": false}
