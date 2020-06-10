@@ -20,6 +20,8 @@ beginners and non technical users can now leverage visual programming and easily
 
 # Additional Setup
 
+This skill requires [Mycroft HiveMind Skill](https://github.com/JarbasSkills/skill-hivemind)
+
 After installing the node red skill you need to deploy some flows in node red
 
 ## Installing node red

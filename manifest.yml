@@ -1,0 +1,7 @@
+dependencies:
+  python:
+    - jarbas_utils
+    - json_database
+    - jarbas_hive_mind_red>=0.1.5
+  skill:
+    - https://github.com/JarbasSkills/skill-hivemind
