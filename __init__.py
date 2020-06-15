@@ -79,7 +79,7 @@ class NodeRedSkill(FallbackSkill):
                     self.speak_dialog("please_reboot")
                     self.set_context("KEY_CHANGED")
             else:
-                db.add_client(name, mail, key)
+                db.add_client(name, mail, key, crypto_key=None)
 
     @intent_handler(IntentBuilder("WhyRebootIntent")
                          .require("WhyKeyword").require("KEY_CHANGED"))
