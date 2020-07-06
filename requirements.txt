@@ -1,1 +1,1 @@
-jarbas_hive_mind_red==0.1.4
+jarbas_hive_mind_red>=0.1.6

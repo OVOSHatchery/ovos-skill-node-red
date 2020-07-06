@@ -13,10 +13,6 @@ class NodeRedSkill(FallbackSkill):
         super(NodeRedSkill, self).__init__(name='NodeRedSkill')
         # can not reload, twisted reactor can not be restarted
         self.reload_skill = False
-        if "host" not in self.settings:
-            self.settings["host"] = "127.0.0.1"
-        if "port" not in self.settings:
-            self.settings["port"] = 6789
         if "timeout" not in self.settings:
             self.settings["timeout"] = 15
         if "secret" not in self.settings:
@@ -24,7 +20,11 @@ class NodeRedSkill(FallbackSkill):
         if "priority" not in self.settings:
             self.settings["priority"] = 50
             
-        # TODO pass these to hivemind
+        # TODO pass these to hivemind / settingsmeta
+        if "host" not in self.settings:
+            self.settings["host"] = "127.0.0.1"
+        if "port" not in self.settings:
+            self.settings["port"] = 6789
         if "ip_list" not in self.settings:
             self.settings["ip_list"] = []
         if "ip_blacklist" not in self.settings:
@@ -44,9 +44,10 @@ class NodeRedSkill(FallbackSkill):
         self.conversing = False
         self.old_key = self.settings["secret"]
         self._error = None
+        self.settings_change_callback = self.on_web_settings_change
 
     def initialize(self):
-        self.settings_change_callback = self.on_web_settings_change
+
         self.register_fallback(self.handle_fallback,
                                int(self.settings["priority"]))
 
@@ -78,7 +79,7 @@ class NodeRedSkill(FallbackSkill):
                     self.speak_dialog("please_reboot")
                     self.set_context("KEY_CHANGED")
             else:
-                db.add_client(name, mail, key)
+                db.add_client(name, mail, key, crypto_key=None)
 
     @intent_handler(IntentBuilder("WhyRebootIntent")
                          .require("WhyKeyword").require("KEY_CHANGED"))
@@ -94,6 +95,8 @@ class NodeRedSkill(FallbackSkill):
         self._error = error
 
     def node_setup(self):
+        self.change_password(force=True)
+        self.node = get_listener(bus=self.bus)
         config = {
             "port": self.settings["port"],
             "host": self.settings["host"],
@@ -101,10 +104,9 @@ class NodeRedSkill(FallbackSkill):
                 {"use_ssl": self.settings["ssl"]}
 
         }
-        self.change_password(force=True)
-        self.node = get_listener(bus=self.bus)
         self.node.load_config(config)
-        self.node_thread = create_daemon(self.node.listen)
+        self.node._autorun = False
+        self.node.listen()
         
     def shutdown(self):
         self.node.stop_from_thread()
@@ -173,13 +175,11 @@ class NodeRedSkill(FallbackSkill):
 
     # converse
     def converse_keepalive(self):
-        start = time.time()
         while True:
-            if self.conversing and time.time() - start >= 5 * 60:
-                # converse timed_out
+            if self.conversing:
+                # avoid converse timed_out
                 self.make_active()
-                start = time.time()
-            time.sleep(1)
+            time.sleep(60)
 
     def converse(self, utterances, lang="en-us"):
         if self.conversing:
@@ -191,8 +191,7 @@ class NodeRedSkill(FallbackSkill):
                 message = Message("node_red.converse",
                                   {"utterance": utterances[0]})
 
-            if not message.context.get("platform", "").startswith(
-                    "NodeRedMind"):
+            if not message.context.get("platform", "").startswith("NodeRedMind"):
                 self.bus.emit(message)
                 return self.wait_for_node()
         return False
