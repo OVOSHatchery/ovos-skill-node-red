@@ -1,16 +1,19 @@
-from mycroft.messagebus.message import Message, dig_for_message
-from mycroft.skills.core import FallbackSkill, intent_file_handler, intent_handler
-from adapt.intent import IntentBuilder
+from ovos_bus_client.message import Message
+from ovos_bus_client.message import dig_for_message
+from ovos_workshop.skills.fallback import FallbackSkill
+from ovos_workshop.decorators import intent_handler
+from ovos_workshop.intents import IntentBuilder
 from jarbas_hive_mind_red import get_listener
 from jarbas_hive_mind.settings import CERTS_PATH
 from jarbas_hive_mind.database import ClientDatabase
-from jarbas_utils import create_daemon
+from ovos_utils import create_daemon
 import time
 
 
 class NodeRedSkill(FallbackSkill):
-    def __init__(self):
-        super(NodeRedSkill, self).__init__(name='NodeRedSkill')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # can not reload, twisted reactor can not be restarted
         self.reload_skill = False
         if "timeout" not in self.settings:
@@ -19,7 +22,7 @@ class NodeRedSkill(FallbackSkill):
             self.settings["secret"] = "unsafe"
         if "priority" not in self.settings:
             self.settings["priority"] = 50
-            
+
         # TODO pass these to hivemind / settingsmeta
         if "host" not in self.settings:
             self.settings["host"] = "127.0.0.1"
@@ -39,7 +42,7 @@ class NodeRedSkill(FallbackSkill):
             self.settings["key"] = CERTS_PATH + '/red.key'
         if "ssl" not in self.settings:
             self.settings["ssl"] = False
-            
+
         self.waiting_for_node = False
         self.conversing = False
         self.old_key = self.settings["secret"]
@@ -57,8 +60,7 @@ class NodeRedSkill(FallbackSkill):
                        self.handle_converse_enable)
         self.add_event("node_red.converse.deactivate",
                        self.handle_converse_disable)
-        self.add_event("hive.client.connection.error",
-                       self.handle_wrong_key)
+        self.add_event("hive.client.connection.error", self.handle_wrong_key)
         self.converse_thread = create_daemon(self.converse_keepalive)
         self.node_setup()
 
@@ -81,8 +83,9 @@ class NodeRedSkill(FallbackSkill):
             else:
                 db.add_client(name, mail, key, crypto_key=None)
 
-    @intent_handler(IntentBuilder("WhyRebootIntent")
-                         .require("WhyKeyword").require("KEY_CHANGED"))
+    @intent_handler(
+        IntentBuilder("WhyRebootIntent").require("WhyKeyword").require(
+            "KEY_CHANGED"))
     def handle_why_reboot(self, message):
         self.speak_dialog("why", wait=True)
 
@@ -100,14 +103,14 @@ class NodeRedSkill(FallbackSkill):
         config = {
             "port": self.settings["port"],
             "host": self.settings["host"],
-            "ssl":
-                {"use_ssl": self.settings["ssl"]}
-
+            "ssl": {
+                "use_ssl": self.settings["ssl"]
+            }
         }
         self.node.load_config(config)
         self.node._autorun = False
         self.node.listen()
-        
+
     def shutdown(self):
         self.node.stop_from_thread()
         if self.converse_thread.running:
@@ -119,7 +122,7 @@ class NodeRedSkill(FallbackSkill):
         self.speak_dialog("intro")
 
     # node red control intents
-    @intent_file_handler("pingnode.intent")
+    @intent_handler("pingnode.intent")
     def handle_ping_node(self, message):
         self.speak("ping")
 
@@ -131,7 +134,7 @@ class NodeRedSkill(FallbackSkill):
         message = message.forward("node_red.ping")
         self.bus.emit(message)
 
-    @intent_file_handler("converse.enable.intent")
+    @intent_handler("converse.enable.intent")
     def handle_converse_enable(self, message):
         if self.conversing:
             self.speak_dialog("converse_on")
@@ -139,14 +142,14 @@ class NodeRedSkill(FallbackSkill):
             self.speak_dialog("converse_enable")
             self.conversing = True
 
-    @intent_file_handler("converse.disable.intent")
+    @intent_handler("converse.disable.intent")
     def handle_converse_disable(self, message):
         if not self.conversing:
             self.speak_dialog("converse_off")
         else:
             self.speak_dialog("converse_disable")
             self.conversing = False
-    
+
     # node red event handlers
     def handle_node_success(self, message):
         self.waiting_for_node = False
@@ -191,7 +194,8 @@ class NodeRedSkill(FallbackSkill):
                 message = Message("node_red.converse",
                                   {"utterance": utterances[0]})
 
-            if not message.context.get("platform", "").startswith("NodeRedMind"):
+            if not message.context.get("platform",
+                                       "").startswith("NodeRedMind"):
                 self.bus.emit(message)
                 return self.wait_for_node()
         return False
@@ -201,7 +205,3 @@ class NodeRedSkill(FallbackSkill):
         message = message.reply("node_red.fallback", message.data)
         self.bus.emit(message)
         return self.wait_for_node()
-
-
-def create_skill():
-    return NodeRedSkill()
